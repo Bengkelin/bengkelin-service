@@ -1,1 +1,54 @@
-package v1 
+package v1
+
+import (
+	"fmt"
+
+	"github.com/Bengkelin/bengkelin-service/internal/api/handlers"
+	"github.com/Bengkelin/bengkelin-service/internal/api/middleware"
+	"github.com/gin-gonic/gin"
+)
+
+func Setup() *gin.Engine {
+	app := gin.New()
+
+	// Middlewares
+	app.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		return fmt.Sprintf("%s - - [%s] \"%s %s %s %d %s \" \" %s\" \" %s\"\n",
+			param.ClientIP,
+			param.TimeStamp.Format("02/Jan/2006:15:04:05 -0700"),
+			param.Method,
+			param.Path,
+			param.Request.Proto,
+			param.StatusCode,
+			param.Latency,
+			param.Request.UserAgent(),
+			param.ErrorMessage,
+		)
+	}))
+	app.Use(gin.Recovery())
+	app.NoMethod(middleware.NoMethodHandler())
+	app.NoRoute(middleware.NoRouteHandler())
+
+	// Routes for v1
+	v1Route := app.Group("/api/v1")
+
+	// AuthGroup with "auth" prefix
+	authGroup := v1Route.Group("auth")
+	authHandler := handlers.GetAuthHandler()
+	{
+		authGroup.POST("login", authHandler.AuthLogin)
+		authGroup.POST("register", authHandler.AuthRegister)
+	}
+
+	// UserGroup with "user" prefix
+	// userGroup := v1Route.Group("users")
+	// userHandler := handlers.GetUserHandler()
+	// {
+	// 	userGroup.POST("", middleware.AuthJWT(), userHandler.CreateUser)
+	// 	userGroup.GET("profile", middleware.AuthJWT(), userHandler.GetProfile)
+	// 	userGroup.PATCH("profile", middleware.AuthJWT(), userHandler.UpdateProfile)
+	// 	userGroup.PATCH("profile/photo", middleware.AuthJWT(), userHandler.UpdateProfilePhotoV2)
+	// }
+
+	return app
+}
