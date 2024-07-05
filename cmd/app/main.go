@@ -1,7 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"github.com/Bengkelin/bengkelin-service/internal/api"
+)
 
 func main() {
-	fmt.Println("Hello, World!")
+	api.Run("")
 }
