@@ -33,13 +33,20 @@ func Setup() *gin.Engine {
 	v1Route := app.Group("/api/v1")
 
 	// AuthGroup with "auth" prefix
-	authGroup := v1Route.Group("auth")
+	authGroup := v1Route.Group("users/auth")
 	authHandler := handlers.GetAuthHandler()
 	{
-		authGroup.POST("login", authHandler.AuthLogin)
-		authGroup.POST("register", authHandler.AuthRegister)
+		authGroup.POST("login", authHandler.UsersAuthLogin)
+		authGroup.POST("register", authHandler.UsersAuthRegister)
+		authGroup.POST("address/:id", authHandler.UsersNewAddress)
 	}
 
+	// auth mitra group with "auth/mitra" prefix
+	authMitraGroup := v1Route.Group("mitras/auth")
+	{
+		authMitraGroup.POST("login", authHandler.MitrasAuthLogin)
+		authMitraGroup.POST("register", authHandler.MitrasAuthRegister)
+	}
 	// UserGroup with "user" prefix
 	// userGroup := v1Route.Group("users")
 	// userHandler := handlers.GetUserHandler()
