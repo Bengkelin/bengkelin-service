@@ -73,6 +73,7 @@ func migrateTable() error {
 	err := DB.AutoMigrate(
 		&models.User{},
 		&models.Mitra{},
+		&models.Address{},
 	)
 	if err != nil {
 		return err
