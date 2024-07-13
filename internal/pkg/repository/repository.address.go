@@ -1,13 +1,18 @@
 package repository
 
-import "github.com/Bengkelin/bengkelin-service/internal/pkg/models"
+import (
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
+)
 
 var (
 	addressRepository *AddressRepository
 )
 
 type AddressRepositoryInterface interface {
-	CreateAddress(address models.Address) (models.Address, error)
+	CreateAddress(address models.AddressUser) (models.AddressUser, error)
+	UpdateAddressById(addressId uint, userId string, address *models.AddressUser) error
+	GetAddressById(userId string) (*models.AddressUser, error)
 }
 
 type AddressRepository struct{}
@@ -20,11 +25,33 @@ func GetAddressRepository() AddressRepositoryInterface {
 }
 
 // CreateAddress implements AddressRepositoryInterface.
-func (repo *AddressRepository) CreateAddress(address models.Address) (models.Address, error) {
+func (repo *AddressRepository) CreateAddress(address models.AddressUser) (models.AddressUser, error) {
 	err := Create(&address)
 	// If error when transaction to database i.e duplicate email
 	if err != nil {
-		return models.Address{}, err
+		return models.AddressUser{}, err
 	}
 	return address, nil
+}
+
+// UpdateAddressById implements AddressRepositoryInterface.
+func (*AddressRepository) UpdateAddressById(addressId uint, userId string, address *models.AddressUser) error {
+	err := db.GetDB().Model(&models.AddressUser{}).Where("id = ? AND user_id = ?", addressId, userId).Updates(address).Error
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetAddressById implements AddressRepositoryInterface.
+func (*AddressRepository) GetAddressById(userId string) (*models.AddressUser, error) {
+	var address models.AddressUser
+	where := models.AddressUser{}
+	where.UserID = userId
+	_, err := First(where, &address, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &address, nil
 }
