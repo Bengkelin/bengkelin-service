@@ -1,6 +1,6 @@
 package models
 
-type Address struct {
+type AddressUser struct {
 	ID           uint    `gorm:"primary_key;auto_increment" json:"address_id"`
 	Latitude     float64 `json:"latitude"`
 	Longitude    float64 `json:"longitude"`
