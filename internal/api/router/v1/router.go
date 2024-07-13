@@ -38,7 +38,7 @@ func Setup() *gin.Engine {
 	{
 		authGroup.POST("login", authHandler.UsersAuthLogin)
 		authGroup.POST("register", authHandler.UsersAuthRegister)
-		authGroup.POST("address/:id", authHandler.UsersNewAddress)
+		authGroup.POST("address", middleware.AuthJWT(), authHandler.UsersNewAddress)
 	}
 
 	// auth mitra group with "auth/mitra" prefix
@@ -48,14 +48,12 @@ func Setup() *gin.Engine {
 		authMitraGroup.POST("register", authHandler.MitrasAuthRegister)
 	}
 	// UserGroup with "user" prefix
-	// userGroup := v1Route.Group("users")
-	// userHandler := handlers.GetUserHandler()
-	// {
-	// 	userGroup.POST("", middleware.AuthJWT(), userHandler.CreateUser)
-	// 	userGroup.GET("profile", middleware.AuthJWT(), userHandler.GetProfile)
-	// 	userGroup.PATCH("profile", middleware.AuthJWT(), userHandler.UpdateProfile)
-	// 	userGroup.PATCH("profile/photo", middleware.AuthJWT(), userHandler.UpdateProfilePhotoV2)
-	// }
+	userGroup := v1Route.Group("users")
+	userHandler := handlers.GetUserHandler()
+	{
+		userGroup.GET("profile", middleware.AuthJWT(), userHandler.GetProfile)
+		userGroup.PATCH("profile", middleware.AuthJWT(), userHandler.UpdateProfile)
+	}
 
 	return app
 }

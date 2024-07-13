@@ -120,14 +120,25 @@ func (handler *AuthHandler) UsersAuthRegister(c *gin.Context) {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, response)
 			return
 		}
-		response := response.BuildSuccessResponse("success register new user", newUser)
+		// create token after register
+		tokenHelper := crypto.GetJWTCrypto()
+		token, err := tokenHelper.GenerateToken(fmt.Sprint(newUser.ID))
+		if err != nil {
+			response := response.BuildFailedResponse("wrong credential", err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+		response := response.BuildSuccessResponse("success register new user", map[string]interface{}{
+			"token": token,
+			"email": newUser.Email,
+		})
 		c.JSON(http.StatusCreated, response)
 		return
 	}
 }
 
 func (handler *AuthHandler) UsersNewAddress(c *gin.Context) {
-	var id = c.Param("id")
+	userId := c.MustGet("id").(string)
 	var addressRequest validator.AddressUserRequest
 	err := c.ShouldBind(&addressRequest)
 
@@ -138,8 +149,8 @@ func (handler *AuthHandler) UsersNewAddress(c *gin.Context) {
 	}
 
 	addressRepo := repository.GetAddressRepository()
-	addressModel := &models.Address{
-		UserID: id,
+	addressModel := &models.AddressUser{
+		UserID: userId,
 	}
 
 	// smapping the struct
