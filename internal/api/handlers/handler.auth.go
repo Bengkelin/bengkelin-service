@@ -243,7 +243,6 @@ func (handler *AuthHandler) UsersNewVehicle(c *gin.Context) {
 	for _, urlLink := range urlPictures {
 		if urlLink != "" {
 			vehiclePhotoModel := &models.VehiclePhoto{
-				UserID:    userId,
 				VehicleID: newVehicle.ID,
 				PhotoURL:  urlLink,
 			}
