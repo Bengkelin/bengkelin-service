@@ -13,9 +13,10 @@ type User struct {
 	LastName    string         `gorm:"type:varchar(255)" json:"last_name"`
 	Email       string         `gorm:"type:varchar(255);unique" json:"email"`
 	PhoneNumber string         `gorm:"type:varchar(255)" json:"phone_number"`
-	Password    string         `gorm:"type:varchar(255)" json:"password"`
+	Password    string         `gorm:"type:varchar(255)" json:"-"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index;column:deleted_at" json:"deleted_at"`
 	Addresses   []AddressUser  `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"addresses"`
+	Vehicles    []Vehicle      `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"vehicles"`
 }

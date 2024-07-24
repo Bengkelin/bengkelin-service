@@ -2,6 +2,7 @@ package v1
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/Bengkelin/bengkelin-service/internal/api/handlers"
 	"github.com/Bengkelin/bengkelin-service/internal/api/middleware"
@@ -32,6 +33,7 @@ func Setup() *gin.Engine {
 	// Routes for v1
 	v1Route := app.Group("/api/v1")
 
+	v1Route.StaticFS("/static", http.Dir("public/vehicles"))
 	// AuthGroup with "auth" prefix
 	authGroup := v1Route.Group("users/auth")
 	authHandler := handlers.GetAuthHandler()
@@ -39,6 +41,7 @@ func Setup() *gin.Engine {
 		authGroup.POST("login", authHandler.UsersAuthLogin)
 		authGroup.POST("register", authHandler.UsersAuthRegister)
 		authGroup.POST("address", middleware.AuthJWT(), authHandler.UsersNewAddress)
+		authGroup.POST("vehicle", middleware.AuthJWT(), authHandler.UsersNewVehicle)
 	}
 
 	// auth mitra group with "auth/mitra" prefix

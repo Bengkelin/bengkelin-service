@@ -47,7 +47,7 @@ func (*UserRepository) FindUserByID(userID string) (*models.User, error) {
 	var user models.User
 	where := models.User{}
 	where.ID = userID
-	_, err := First(where, &user, []string{"Addresses"})
+	_, err := First(where, &user, []string{"Addresses", "Vehicles", "Vehicles.Photos"})
 	if err != nil {
 		return nil, err
 	}

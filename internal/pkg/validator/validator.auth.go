@@ -45,7 +45,7 @@ type AddressUserRequest struct {
 }
 
 type VehicleUserRequest struct {
-	VehicleBrand  string `json:"vehicle_type" binding:"required"`
-	VehicleColor  string `json:"vehicle_color" binding:"required"`
-	VehicleNumber string `json:"vehicle_number" binding:"required"`
+	VehicleType   string `form:"vehicle_type" binding:"required"`
+	VehicleColor  string `form:"vehicle_color" binding:"required"`
+	VehicleNumber string `form:"vehicle_number" binding:"required"`
 }

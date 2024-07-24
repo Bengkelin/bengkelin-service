@@ -4,6 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
@@ -25,6 +29,7 @@ type AuthHandlerInterface interface {
 	UsersAuthLogin(c *gin.Context)
 	UsersAuthRegister(c *gin.Context)
 	UsersNewAddress(c *gin.Context)
+	UsersNewVehicle(c *gin.Context)
 	MitrasAuthLogin(c *gin.Context)
 	MitrasAuthRegister(c *gin.Context)
 }
@@ -78,8 +83,16 @@ func (handler *AuthHandler) UsersAuthLogin(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
 		return
 	}
+
+	user, err = userRepo.FindUserByID(user.ID)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to login", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
 	response := response.BuildSuccessResponse("success login", map[string]interface{}{
 		"token": token,
+		"user":  user,
 	})
 	c.JSON(http.StatusOK, response)
 }
@@ -165,6 +178,85 @@ func (handler *AuthHandler) UsersNewAddress(c *gin.Context) {
 		c.JSON(http.StatusCreated, response)
 		return
 	}
+}
+
+func (handler *AuthHandler) UsersNewVehicle(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+	var vehicleRequest validator.VehicleUserRequest
+	err := c.ShouldBind(&vehicleRequest)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to register", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+	vehicleRepo := repository.GetVehicleRepository()
+
+	vehiclePhotoRepo := repository.GetVehiclePhotoRepository()
+	vehicleModel := &models.Vehicle{
+		UserID: userId,
+	}
+
+	// smapping the struct
+	smapping.FillStruct(vehicleModel, smapping.MapFields(&vehicleRequest))
+
+	newVehicle, err := vehicleRepo.CreateVehicle(*vehicleModel)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to attach new vehicle", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	form, _ := c.MultipartForm()
+	files := form.File["files"]
+
+	urlPictures := []string{""}
+
+	for _, file := range files {
+		fileExt := filepath.Ext(file.Filename)
+
+		originalFileName := strings.TrimSuffix(filepath.Base(file.Filename), filepath.Ext(file.Filename))
+		now := time.Now()
+		fileName := strings.ReplaceAll(strings.ToLower(originalFileName), " ", "-") + "-" + fmt.Sprintf("%v", now.Unix()) + fileExt
+		res, err := os.Stat("public/vehicles")
+		if os.IsNotExist(err) || !res.IsDir() {
+			os.Mkdir("public/vehicles", os.ModePerm)
+		}
+
+		var directoryName string = "./public/vehicles/" + fileName
+
+		fileName = strings.ReplaceAll(strings.ToLower(originalFileName), " ", "-") + "-" + fmt.Sprintf("%v", now.Unix()) + fileExt
+
+		if err := c.SaveUploadedFile(file, directoryName); err != nil {
+			response := response.BuildFailedResponse("failed to upload file", err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+
+		reqHost := "localhost:3000"
+
+		urlPicture := fmt.Sprintf("http://%s/api/v1/static/%s", reqHost, fileName)
+		urlPictures = append(urlPictures, urlPicture)
+
+	}
+
+	for _, urlLink := range urlPictures {
+		if urlLink != "" {
+			vehiclePhotoModel := &models.VehiclePhoto{
+				VehicleID: newVehicle.ID,
+				PhotoURL:  urlLink,
+			}
+			_, err = vehiclePhotoRepo.CreateVehiclePhoto(*vehiclePhotoModel)
+			if err != nil {
+				response := response.BuildFailedResponse("failed to attach new vehicle photo", err.Error())
+				c.AbortWithStatusJSON(http.StatusBadRequest, response)
+				return
+			}
+		}
+	}
+
+	response := response.BuildSuccessResponse("success attach new vehicle photos", newVehicle)
+	c.JSON(http.StatusCreated, response)
 }
 
 func (handler *AuthHandler) MitrasAuthLogin(c *gin.Context) {
