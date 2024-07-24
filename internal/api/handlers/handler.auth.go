@@ -84,15 +84,8 @@ func (handler *AuthHandler) UsersAuthLogin(c *gin.Context) {
 		return
 	}
 
-	user, err = userRepo.FindUserByID(user.ID)
-	if err != nil {
-		response := response.BuildFailedResponse("failed to login", err.Error())
-		c.AbortWithStatusJSON(http.StatusBadRequest, response)
-		return
-	}
 	response := response.BuildSuccessResponse("success login", map[string]interface{}{
 		"token": token,
-		"user":  user,
 	})
 	c.JSON(http.StatusOK, response)
 }
@@ -255,7 +248,14 @@ func (handler *AuthHandler) UsersNewVehicle(c *gin.Context) {
 		}
 	}
 
-	response := response.BuildSuccessResponse("success attach new vehicle photos", newVehicle)
+	dataVehicle, err := vehicleRepo.GetVehicleById(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get vehicle", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success attach new vehicle photos", dataVehicle)
 	c.JSON(http.StatusCreated, response)
 }
 
