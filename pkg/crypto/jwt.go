@@ -47,7 +47,7 @@ func (helper *jwtCryptoHelper) GenerateToken(UserID string) (string, error) {
 	claims := &jwtCustomClaim{
 		UserID,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(serverConfiguration.ExpiresHour)).Unix(),
+			//ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(serverConfiguration.ExpiresHour)).Unix(),
 			Issuer:    serverConfiguration.Name,
 			IssuedAt:  time.Now().Unix(),
 		},
@@ -65,7 +65,7 @@ func (helper *jwtCryptoHelper) GenerateTokenMitra(MitraId string) (string, error
 	claims := &jwtCustomClaimMitra{
 		MitraId,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(serverConfiguration.ExpiresHour)).Unix(),
+			//ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(serverConfiguration.ExpiresHour)).Unix(),
 			Issuer:    serverConfiguration.Name,
 			IssuedAt:  time.Now().Unix(),
 		},

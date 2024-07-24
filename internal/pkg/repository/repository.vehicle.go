@@ -49,7 +49,7 @@ func (*VehicleRepository) GetVehicleById(userId string) (*models.Vehicle, error)
 	var vehicle models.Vehicle
 	where := models.Vehicle{}
 	where.UserID = userId
-	_, err := First(where, &vehicle, nil)
+	_, err := First(where, &vehicle, []string{"Photos"})
 	if err != nil {
 		return nil, err
 	}
