@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
@@ -86,7 +87,6 @@ func (handler *AuthHandler) UsersAuthLogin(c *gin.Context) {
 
 	response := response.BuildSuccessResponse("success login", map[string]interface{}{
 		"token": token,
-		"user":  user,
 	})
 	c.JSON(http.StatusOK, response)
 }
@@ -187,6 +187,8 @@ func (handler *AuthHandler) UsersNewVehicle(c *gin.Context) {
 	vehicleRepo := repository.GetVehicleRepository()
 
 	vehiclePhotoRepo := repository.GetVehiclePhotoRepository()
+
+	serverConfiguration := config.GetConfig().Server
 	vehicleModel := &models.Vehicle{
 		UserID: userId,
 	}
@@ -204,7 +206,7 @@ func (handler *AuthHandler) UsersNewVehicle(c *gin.Context) {
 	form, _ := c.MultipartForm()
 	files := form.File["files"]
 
-	urlPictures := []string{""}
+	urlPictures := []string{}
 
 	for _, file := range files {
 		fileExt := filepath.Ext(file.Filename)
@@ -227,25 +229,28 @@ func (handler *AuthHandler) UsersNewVehicle(c *gin.Context) {
 			return
 		}
 
-		reqHost := "localhost:3000"
+		var reqHost string = "true"
+
+		if serverConfiguration.DevMode == "false" {
+			reqHost = serverConfiguration.Host
+		} else {
+			reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
+		}
 
 		urlPicture := fmt.Sprintf("http://%s/api/v1/static/%s", reqHost, fileName)
 		urlPictures = append(urlPictures, urlPicture)
-
 	}
 
 	for _, urlLink := range urlPictures {
-		if urlLink != "" {
-			vehiclePhotoModel := &models.VehiclePhoto{
-				VehicleID: newVehicle.ID,
-				PhotoURL:  urlLink,
-			}
-			_, err = vehiclePhotoRepo.CreateVehiclePhoto(*vehiclePhotoModel)
-			if err != nil {
-				response := response.BuildFailedResponse("failed to attach new vehicle photo", err.Error())
-				c.AbortWithStatusJSON(http.StatusBadRequest, response)
-				return
-			}
+		vehiclePhotoModel := &models.VehiclePhoto{
+			VehicleID: newVehicle.ID,
+			PhotoURL:  urlLink,
+		}
+		_, err = vehiclePhotoRepo.CreateVehiclePhoto(*vehiclePhotoModel)
+		if err != nil {
+			response := response.BuildFailedResponse("failed to attach new vehicle photo", err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
 		}
 	}
 
