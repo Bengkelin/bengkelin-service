@@ -49,6 +49,7 @@ func Setup() *gin.Engine {
 	{
 		authMitraGroup.POST("login", authHandler.MitrasAuthLogin)
 		authMitraGroup.POST("register", authHandler.MitrasAuthRegister)
+		authMitraGroup.POST("bank", middleware.AuthJWTMitra(), authHandler.MitrasNewBank)
 	}
 	// UserGroup with "user" prefix
 	userGroup := v1Route.Group("users")
@@ -56,6 +57,15 @@ func Setup() *gin.Engine {
 	{
 		userGroup.GET("profile", middleware.AuthJWT(), userHandler.GetProfile)
 		userGroup.PATCH("profile", middleware.AuthJWT(), userHandler.UpdateProfile)
+	}
+
+	// MitraGroup with "mitra" prefix
+	mitraGroup := v1Route.Group("bengkels")
+	mitraHandler := handlers.GetBengkelHandler()
+	{
+		mitraGroup.POST("new", middleware.AuthJWTMitra(), mitraHandler.CreateBengkel)
+		mitraGroup.GET("profile", middleware.AuthJWTMitra(), mitraHandler.GetBengkel)
+		mitraGroup.POST("address", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelAddress)
 	}
 
 	return app
