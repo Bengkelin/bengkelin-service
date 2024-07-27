@@ -1,7 +1,7 @@
 package models
 
 type BengkelAddress struct {
-	BengkelID    string  `gorm:"primary_key;reference;type:varchar(36)" json:"bengkel_id"`
+	BengkelID    string  `gorm:"primary_key;reference;type:varchar(36)" json:"-"`
 	Latitude     float64 `json:"latitude"`
 	Longitude    float64 `json:"longitude"`
 	AddressLabel string  `json:"address_label"`
