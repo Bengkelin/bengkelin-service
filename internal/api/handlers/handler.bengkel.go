@@ -29,6 +29,7 @@ func GetBengkelHandler() *BengkelHandler {
 // BengkelHandlerInterface interface
 type BengkelHandlerInterface interface {
 	CreateBengkel(c *gin.Context)
+	CreateBengkelAddress(c *gin.Context)
 	UpdateBengkel(c *gin.Context)
 	GetBengkel(c *gin.Context)
 }
@@ -93,6 +94,51 @@ func (handler *BengkelHandler) CreateBengkel(c *gin.Context) {
 	}
 
 	response := response.BuildSuccessResponse("success create bengkel", nil)
+	c.JSON(http.StatusOK, response)
+}
+
+// CreateBengkelAddress function
+func (handler *BengkelHandler) CreateBengkelAddress(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+
+	var requestDataBengkelAddress validator.AddressMitraRequest
+
+	err := c.ShouldBindJSON(&requestDataBengkelAddress)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to bind json", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	mitraRepo := repository.GetMitraRepository()
+
+	mitra, err := mitraRepo.GetMitraByID(mitraId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get mitra", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	mitraAddressRepo := repository.GetBengkelAddressRepository()
+
+	mitraAddressModel := &models.BengkelAddress{
+		BengkelID:    mitra.Bengkel[0].ID,
+		Latitude:     requestDataBengkelAddress.Latitude,
+		Longitude:    requestDataBengkelAddress.Longitude,
+		AddressLabel: requestDataBengkelAddress.AddressLabel,
+		FullAddress:  requestDataBengkelAddress.FullAddress,
+		Note:         requestDataBengkelAddress.Note,
+	}
+
+	_, err = mitraAddressRepo.CreateBengkelAddress(*mitraAddressModel)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to attach bengkel address", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success attach bengkel address", nil)
 	c.JSON(http.StatusOK, response)
 }
 
