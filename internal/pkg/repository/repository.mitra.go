@@ -58,7 +58,7 @@ func (*MitraRepository) GetMitraByID(mitraID string) (*models.Mitra, error) {
 	var mitra models.Mitra
 	where := models.Mitra{}
 	where.ID = mitraID
-	_, err := First(where, &mitra, nil)
+	_, err := First(where, &mitra, []string{"Bengkel"})
 	if err != nil {
 		return nil, err
 	}
