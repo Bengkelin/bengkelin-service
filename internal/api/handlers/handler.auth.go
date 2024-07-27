@@ -33,6 +33,7 @@ type AuthHandlerInterface interface {
 	UsersNewVehicle(c *gin.Context)
 	MitrasAuthLogin(c *gin.Context)
 	MitrasAuthRegister(c *gin.Context)
+	MitrasNewBank(c *gin.Context)
 }
 
 func GetAuthHandler() AuthHandlerInterface {
@@ -346,8 +347,47 @@ func (handler *AuthHandler) MitrasAuthRegister(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
 		return
 	} else {
-		response := response.BuildSuccessResponse("success register new mitra", newMitra)
+		tokenHelper := crypto.GetJWTCrypto()
+		token, err := tokenHelper.GenerateTokenMitra(fmt.Sprint(newMitra.ID))
+
+		if err != nil {
+			response := response.BuildFailedResponse("wrong credential", err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+		response := response.BuildSuccessResponse("success register new mitra", map[string]interface{}{
+			"token": token,
+			"email": newMitra.Email,
+		})
 		c.JSON(http.StatusCreated, response)
 		return
 	}
+}
+
+func (handler *AuthHandler) MitrasNewBank(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+	var bankRequest validator.BankMitraRequest
+
+	err := c.ShouldBind(&bankRequest)
+
+	if err != nil {
+		response := response.BuildFailedResponse("request invalid", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	mitraRepo := repository.GetMitraRepository()
+
+	mitraModel := &models.Mitra{}
+
+	smapping.FillStruct(mitraModel, smapping.MapFields(&bankRequest))
+
+	if err := mitraRepo.UpdateMitra(mitraId, mitraModel); err != nil {
+		response := response.BuildFailedResponse("failed to update data bank mitra", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success update data bank mitra", nil)
+	c.JSON(http.StatusOK, response)
 }
