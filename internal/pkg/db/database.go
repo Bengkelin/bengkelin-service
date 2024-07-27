@@ -74,9 +74,13 @@ func migrateTable() error {
 		&models.User{},
 		&models.Mitra{},
 		&models.AddressUser{},
-		&models.AddressMitra{},
 		&models.Vehicle{},
 		&models.VehiclePhoto{},
+		&models.Bengkel{},
+		&models.BengkelPhoto{},
+		&models.BengkelService{},
+		&models.BengkelOperasional{},
+		&models.BengkelAddress{},
 	)
 	if err != nil {
 		return err
