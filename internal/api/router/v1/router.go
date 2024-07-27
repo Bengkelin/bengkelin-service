@@ -65,6 +65,7 @@ func Setup() *gin.Engine {
 	{
 		mitraGroup.POST("new", middleware.AuthJWTMitra(), mitraHandler.CreateBengkel)
 		mitraGroup.GET("profile", middleware.AuthJWTMitra(), mitraHandler.GetBengkel)
+		mitraGroup.POST("address", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelAddress)
 	}
 
 	return app
