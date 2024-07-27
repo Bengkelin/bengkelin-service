@@ -7,3 +7,11 @@ type RegisterBengkelRequest struct {
 	Hari         []string `json:"hari"`
 	JamBuka      []string `json:"jam_buka"`
 }
+
+type AddressMitraRequest struct {
+	Latitude     float64 `json:"latitude" binding:"required"`
+	Longitude    float64 `json:"longitude" binding:"required"`
+	AddressLabel string  `json:"address_label" binding:"required"`
+	FullAddress  string  `json:"full_address" binding:"required"`
+	Note         string  `json:"note"`
+}
