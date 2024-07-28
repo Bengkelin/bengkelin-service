@@ -38,5 +38,5 @@ jobs:
                   username: ${{ secrets.SSH_USERNAME }}
                   key: ${{ secrets.SSH_PRIVATE_KEY }}
                   script: |
-                      sudo systemctl bengkelin stop
-                      sudo systemctl bengkelin start
+                      sudo service bengkelin stop
+                      sudo service bengkelin start
