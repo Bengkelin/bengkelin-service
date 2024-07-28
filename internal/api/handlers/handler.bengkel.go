@@ -256,7 +256,7 @@ func (handler *BengkelHandler) CreateBengkelPhoto(c *gin.Context) {
 			reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
 		}
 
-		urlPicture := fmt.Sprintf("http://%s/api/v1/static/%s", reqHost, fileName)
+		urlPicture := fmt.Sprintf("http://%s/api/v1/static/bengkel/%s", reqHost, fileName)
 		urlPictures = append(urlPictures, urlPicture)
 	}
 
