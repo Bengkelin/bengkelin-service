@@ -1,0 +1,43 @@
+name: Build and Deploy Go
+on:
+    workflow_dispatch:
+    push:
+        branches: [main]
+jobs:
+    web-deploy:
+        if: "contains(github.event.head_commit.message, 'DEPLOY')"
+        name: 🎉 Build and Deploy Go
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: 🚚 Get latest code
+              uses: actions/checkout@v3
+
+            - name: 📦 Go Setup
+              uses: actions/setup-go@v3
+              with:
+                  go-version: "1.21"
+
+            - name: 📦 Go Build
+              run: make build
+              working-directory: home/bengkelin/bengkelin-service
+
+            - name: 📁 Send files via Rsync
+              uses: Burnett01/rsync-deployments@5.2.1
+              with:
+                  switches: -avzr
+                  path: home/bengkelin/bengkelin-service/cmd/app/main
+                  remote_path: home/bengkelin/bengkelin-service/cmd/app/
+                  remote_host: ${{ secrets.SSH_HOST }}
+                  remote_user: ${{ secrets.SSH_USERNAME }}
+                  remote_key: ${{ secrets.SSH_KEY }}
+
+            - name: 🌟 Run server
+              uses: appleboy/ssh-action@master
+              with:
+                  host: ${{ secrets.SSH_HOST }}
+                  username: ${{ secrets.SSH_USERNAME }}
+                  key: ${{ secrets.SSH_KEY }}
+                  script: |
+                      sudo systemctl bengkelin stop
+                      sudo systemctl bengkelin start
