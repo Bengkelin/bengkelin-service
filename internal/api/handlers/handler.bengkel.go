@@ -216,6 +216,13 @@ func (handler *BengkelHandler) CreateBengkelPhoto(c *gin.Context) {
 	form, _ := c.MultipartForm()
 	photos := form.File["photos"]
 
+	// check if photos is empty
+	if len(photos) == 0 {
+		response := response.BuildFailedResponse("failed to upload file", "photos is empty")
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
 	urlPictures := []string{}
 
 	serverConfiguration := config.GetConfig().Server
