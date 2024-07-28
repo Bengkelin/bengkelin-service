@@ -309,6 +309,7 @@ func (handler *BengkelHandler) UpdateBengkelStatusOpsiService(c *gin.Context) {
 	bengkelModel := &models.Bengkel{
 		HomeService:  &requestOptionStatusBengkelService.HomeService,
 		StoreService: &requestOptionStatusBengkelService.StoreService,
+		IsOpen:       &requestOptionStatusBengkelService.IsOpen,
 	}
 
 	err = bengkelRepo.UpdateBengkelById(mitra.Bengkel[0].ID, bengkelModel)
