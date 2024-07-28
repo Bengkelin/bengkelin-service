@@ -207,6 +207,12 @@ func (handler *AuthHandler) UsersNewVehicle(c *gin.Context) {
 	form, _ := c.MultipartForm()
 	files := form.File["files"]
 
+	if len(files) == 0 {
+		response := response.BuildFailedResponse("failed to upload file", "photos is empty")
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
 	urlPictures := []string{}
 
 	for _, file := range files {
@@ -238,7 +244,7 @@ func (handler *AuthHandler) UsersNewVehicle(c *gin.Context) {
 			reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
 		}
 
-		urlPicture := fmt.Sprintf("http://%s/api/v1/static/%s", reqHost, fileName)
+		urlPicture := fmt.Sprintf("http://%s/api/v1/static/vehicle/%s", reqHost, fileName)
 		urlPictures = append(urlPictures, urlPicture)
 	}
 
