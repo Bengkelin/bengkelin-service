@@ -1,4 +1,4 @@
-name: Build and Deploy Go
+name: Build and Deploy Bengkelin
 on:
     workflow_dispatch:
     push:
@@ -6,7 +6,7 @@ on:
 jobs:
     web-deploy:
         if: "contains(github.event.head_commit.message, 'DEPLOY')"
-        name: 🎉 Build and Deploy Go
+        name: 🎉 Build and Deploy Bengkelin
         runs-on: ubuntu-latest
 
         steps:
@@ -19,15 +19,14 @@ jobs:
                   go-version: "1.21"
 
             - name: 📦 Go Build
-              run: make build
-              working-directory: home/bengkelin/bengkelin-service
+              run: go build -o main
 
             - name: 📁 Send files via Rsync
               uses: Burnett01/rsync-deployments@5.2.1
               with:
                   switches: -avzr
-                  path: home/bengkelin/bengkelin-service/cmd/app/main
-                  remote_path: home/bengkelin/bengkelin-service/cmd/app/
+                  path: ./main
+                  remote_path: /home/bengkelin/bengkelin-service/cmd/app/
                   remote_host: ${{ secrets.SSH_HOST }}
                   remote_user: ${{ secrets.SSH_USERNAME }}
                   remote_key: ${{ secrets.SSH_KEY }}
