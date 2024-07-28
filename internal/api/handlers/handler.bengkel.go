@@ -125,7 +125,7 @@ func (handler *BengkelHandler) CreateBengkelAddress(c *gin.Context) {
 
 	if err != nil {
 		response := response.BuildFailedResponse("failed to bind json", err.Error())
-		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
 		return
 	}
 
