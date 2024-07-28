@@ -34,6 +34,7 @@ func Setup() *gin.Engine {
 	v1Route := app.Group("/api/v1")
 
 	v1Route.StaticFS("/static", http.Dir("public/vehicles"))
+	v1Route.StaticFS("/static", http.Dir("public/bengkels"))
 	// AuthGroup with "auth" prefix
 	authGroup := v1Route.Group("users/auth")
 	authHandler := handlers.GetAuthHandler()
