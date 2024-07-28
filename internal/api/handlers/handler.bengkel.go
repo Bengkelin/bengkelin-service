@@ -125,7 +125,7 @@ func (handler *BengkelHandler) CreateBengkelAddress(c *gin.Context) {
 
 	if err != nil {
 		response := response.BuildFailedResponse("failed to bind json", err.Error())
-		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
 		return
 	}
 
@@ -215,6 +215,13 @@ func (handler *BengkelHandler) CreateBengkelPhoto(c *gin.Context) {
 
 	form, _ := c.MultipartForm()
 	photos := form.File["photos"]
+
+	// check if photos is empty
+	if len(photos) == 0 {
+		response := response.BuildFailedResponse("failed to upload file", "photos is empty")
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
 
 	urlPictures := []string{}
 
