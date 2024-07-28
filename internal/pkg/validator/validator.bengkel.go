@@ -19,3 +19,8 @@ type BengkelAddressRequest struct {
 type BengkelServiceRequest struct {
 	NamaService []string `json:"nama_service"`
 }
+
+type BengkelServiceOptionRequest struct {
+	HomeService  bool `json:"home_service"`
+	StoreService bool `json:"store_service"`
+}
