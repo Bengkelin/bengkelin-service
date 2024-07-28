@@ -8,6 +8,7 @@ type Bengkel struct {
 	JumlahMontir uint                 `gorm:"type:int" json:"jumlah_montir"`
 	HomeService  *bool                `gorm:"type:bool" json:"home_service"`
 	StoreService *bool                `gorm:"type:bool" json:"store_service"`
+	IsOpen       *bool                `gorm:"type:bool" json:"is_open"`
 	Operasionals []BengkelOperasional `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"operasionals"`
 	Photos       []BengkelPhoto       `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"photos"`
 	Services     []BengkelService     `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"services"`
