@@ -38,6 +38,7 @@ type BengkelHandlerInterface interface {
 	CreateBengkelAddress(c *gin.Context)
 	CreateBengkelService(c *gin.Context)
 	CreateBengkelPhoto(c *gin.Context)
+	UpdateBengkelStatusOpsiService(c *gin.Context)
 	UpdateBengkel(c *gin.Context)
 	GetBengkel(c *gin.Context)
 }
@@ -272,6 +273,46 @@ func (handler *BengkelHandler) CreateBengkelPhoto(c *gin.Context) {
 // UpdateBengkel function
 func (handler *BengkelHandler) UpdateBengkel(c *gin.Context) {
 
+}
+
+// UpdateBengkelStatusOpsiService function
+func (handler *BengkelHandler) UpdateBengkelStatusOpsiService(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+
+	mitraRepo := repository.GetMitraRepository()
+
+	mitra, err := mitraRepo.FindMitraByID(mitraId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get mitra", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var requestOptionStatusBengkelService validator.BengkelServiceOptionRequest
+
+	err = c.ShouldBindJSON(&requestOptionStatusBengkelService)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to bind json", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	bengkelRepo := repository.GetBengkelRepository()
+
+	bengkelModel := &models.Bengkel{
+		HomeService:  &requestOptionStatusBengkelService.HomeService,
+		StoreService: &requestOptionStatusBengkelService.StoreService,
+	}
+
+	err = bengkelRepo.UpdateBengkelById(mitra.Bengkel[0].ID, bengkelModel)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to update bengkel status option service", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success update bengkel status option service", nil)
+	c.JSON(http.StatusOK, response)
 }
 
 // GetBengkel function
