@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,6 +42,8 @@ type BengkelHandlerInterface interface {
 	UpdateBengkelStatusOpsiService(c *gin.Context)
 	UpdateBengkel(c *gin.Context)
 	GetBengkel(c *gin.Context)
+	GetAllBengkel(c *gin.Context)
+	GetAllBengkelPaginate(c *gin.Context)
 }
 
 // CreateBengkel function
@@ -337,5 +340,64 @@ func (handler *BengkelHandler) GetBengkel(c *gin.Context) {
 	}
 
 	response := response.BuildSuccessResponse("success get mitra", mitra)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetAllBengkel function
+func (handler *BengkelHandler) GetAllBengkel(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+	bengkelRepo := repository.GetBengkelRepository()
+
+	bengkels, err := bengkelRepo.GetAllBengkel()
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get all bengkel", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get all bengkel", bengkels)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetAllBengkelPaginate function
+func (handler *BengkelHandler) GetAllBengkelPaginate(c *gin.Context) {
+	page := c.Query("page")
+	limit := c.Query("limit")
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	pageInt, _ := strconv.Atoi(page)
+	limitInt, _ := strconv.Atoi(limit)
+
+	bengkelRepo := repository.GetBengkelRepository()
+
+	bengkels, count, err := bengkelRepo.GetAllBengkelPaginate(pageInt, limitInt)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get all bengkel", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get all bengkel", map[string]any{
+		"bengkels": bengkels,
+		"count":    count,
+	})
 	c.JSON(http.StatusOK, response)
 }
