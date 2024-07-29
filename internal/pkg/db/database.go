@@ -6,6 +6,7 @@ import (
 
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
+	"github.com/Bengkelin/bengkelin-service/pkg/helpers"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -66,6 +67,7 @@ func SetupDB() {
 	if err != nil {
 		fmt.Println(err)
 	}
+	CreateMitraSeeder()
 }
 
 // AutoMigrate project models
@@ -86,6 +88,88 @@ func migrateTable() error {
 		return err
 	}
 	return nil
+}
+
+func CreateMitraSeeder() {
+
+	var id []string
+	// create 10 mitra using batch insert
+	for i := 1; i <= 10; i++ {
+		mitra := models.Mitra{
+			ID:          helpers.GenerateUUID(),
+			FirstName:   "Mitra" + fmt.Sprint(i),
+			LastName:    "Bengkelin" + fmt.Sprint(i),
+			Email:       "bengkelin" + fmt.Sprint(i) + "@gmail.com",
+			Password:    "password",
+			PhoneNumber: "08123456789",
+			BankName:    "BCA",
+			BankNumber:  "1234567890",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}
+		id = append(id, mitra.ID)
+		DB.Create(&mitra)
+	}
+
+	var isOpen = true
+	var idBengkel []string
+	// create 10 bengkel using batch insert
+	for i := 1; i <= 10; i++ {
+		bengkel := models.Bengkel{
+			ID:           helpers.GenerateUUID(),
+			MitraID:      id[i-1],
+			BengkelName:  "Bengkelin" + fmt.Sprint(i),
+			BengkelPhone: "08123456789",
+			JumlahMontir: 3,
+			HomeService:  &isOpen,
+			StoreService: &isOpen,
+			IsOpen:       &isOpen,
+		}
+		idBengkel = append(idBengkel, bengkel.ID)
+		DB.Create(&bengkel)
+	}
+
+	// create 10 bengkel operasional using batch insert
+	for i := 1; i <= 10; i++ {
+		bengkelOperasional := models.BengkelOperasional{
+			BengkelID: idBengkel[i-1],
+			Hari:      "Senin",
+			JamBuka:   "08:00",
+		}
+		DB.Create(&bengkelOperasional)
+	}
+
+	// create 10 bengkel address using batch insert
+	for i := 1; i <= 10; i++ {
+		bengkelAddress := models.BengkelAddress{
+			BengkelID:    idBengkel[i-1],
+			Latitude:     -6.193125,
+			Longitude:    106.821808,
+			AddressLabel: "Jl. Jend. Sudirman",
+			FullAddress:  "Jl. Jend. Sudirman No.Kav 54-55, RT.5/RW.3, Senayan, Kec. Kby. Baru, Kota Jakarta Selatan, Daerah Khusus Ibukota Jakarta 12190",
+			Note:         "Sebelah Bank BCA",
+		}
+		DB.Create(&bengkelAddress)
+	}
+
+	// create 10 bengkel photo using batch insert
+	for i := 1; i <= 10; i++ {
+		bengkelPhoto := models.BengkelPhoto{
+			BengkelID: idBengkel[i-1],
+			PhotoURL:  "http://103.127.136.198/api/v1/static/bengkel/post-1722173668.png",
+		}
+		DB.Create(&bengkelPhoto)
+	}
+
+	// create 10 bengkel service using batch insert
+	for i := 1; i <= 10; i++ {
+		bengkelService := models.BengkelService{
+			BengkelID:   idBengkel[i-1],
+			NamaService: "Service" + fmt.Sprint(i),
+		}
+		DB.Create(&bengkelService)
+	}
+
 }
 
 func GetDB() *gorm.DB {

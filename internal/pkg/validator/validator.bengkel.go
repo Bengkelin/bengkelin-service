@@ -23,4 +23,5 @@ type BengkelServiceRequest struct {
 type BengkelServiceOptionRequest struct {
 	HomeService  bool `json:"home_service"`
 	StoreService bool `json:"store_service"`
+	IsOpen       bool `json:"is_open"`
 }
