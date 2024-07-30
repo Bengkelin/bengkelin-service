@@ -44,6 +44,8 @@ type BengkelHandlerInterface interface {
 	GetBengkel(c *gin.Context)
 	GetAllBengkel(c *gin.Context)
 	GetAllBengkelPaginate(c *gin.Context)
+	GetBengkelSearchPaginate(c *gin.Context)
+	GetBengkelFilterPaginate(c *gin.Context)
 }
 
 // CreateBengkel function
@@ -389,6 +391,76 @@ func (handler *BengkelHandler) GetAllBengkelPaginate(c *gin.Context) {
 	bengkelRepo := repository.GetBengkelRepository()
 
 	bengkels, count, err := bengkelRepo.GetAllBengkelPaginate(pageInt, limitInt)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get all bengkel", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get all bengkel", map[string]any{
+		"bengkels": bengkels,
+		"count":    count,
+	})
+	c.JSON(http.StatusOK, response)
+}
+
+// GetBengkelSearchPaginate function
+func (handler *BengkelHandler) GetBengkelSearchPaginate(c *gin.Context) {
+	page := c.Query("page")
+	limit := c.Query("limit")
+	query := c.Query("query")
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	pageInt, _ := strconv.Atoi(page)
+	limitInt, _ := strconv.Atoi(limit)
+
+	bengkelRepo := repository.GetBengkelRepository()
+
+	bengkels, count, err := bengkelRepo.GetBengkelSearch(query, pageInt, limitInt)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get all bengkel", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get all bengkel", map[string]any{
+		"bengkels": bengkels,
+		"count":    count,
+	})
+	c.JSON(http.StatusOK, response)
+}
+
+// GetBengkelFilterPaginate function
+func (handler *BengkelHandler) GetBengkelFilterPaginate(c *gin.Context) {
+	page := c.Query("page")
+	limit := c.Query("limit")
+	service := c.Query("service")
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	pageInt, _ := strconv.Atoi(page)
+	limitInt, _ := strconv.Atoi(limit)
+
+	bengkelRepo := repository.GetBengkelRepository()
+
+	bengkels, count, err := bengkelRepo.GetBengkelByFilterService(service, pageInt, limitInt)
 	if err != nil {
 		response := response.BuildFailedResponse("failed to get all bengkel", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
