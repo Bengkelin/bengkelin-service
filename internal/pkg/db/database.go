@@ -67,7 +67,7 @@ func SetupDB() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	CreateMitraSeeder()
+	//CreateMitraSeeder()
 }
 
 // AutoMigrate project models
@@ -118,7 +118,7 @@ func CreateMitraSeeder() {
 		bengkel := models.Bengkel{
 			ID:           helpers.GenerateUUID(),
 			MitraID:      id[i-1],
-			BengkelName:  "Bengkelin" + fmt.Sprint(i),
+			BengkelName:  "Honda Mitra" + fmt.Sprint(i),
 			BengkelPhone: "08123456789",
 			JumlahMontir: 3,
 			HomeService:  &isOpen,
