@@ -68,6 +68,7 @@ func SetupDB() {
 		fmt.Println(err)
 	}
 	//CreateMitraSeeder()
+	createCreatedAtUpdatedAtBengkelModel()
 }
 
 // AutoMigrate project models
@@ -170,6 +171,18 @@ func CreateMitraSeeder() {
 		DB.Create(&bengkelService)
 	}
 
+}
+
+func createCreatedAtUpdatedAtBengkelModel() {
+	var bengkels []models.Bengkel
+	DB.Find(&bengkels)
+	for _, bengkel := range bengkels {
+		if bengkel.CreatedAt.IsZero() && bengkel.UpdatedAt.IsZero() {
+			bengkel.CreatedAt = time.Now()
+			bengkel.UpdatedAt = time.Now().Add(10 * time.Second)
+			DB.Save(&bengkel)
+		}
+	}
 }
 
 func GetDB() *gorm.DB {
