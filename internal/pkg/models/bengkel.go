@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type Bengkel struct {
 	ID           string               `gorm:"primary_key;type:varchar(36)" json:"bengkel_id"`
 	MitraID      string               `gorm:"reference" json:"-"`
@@ -13,4 +15,6 @@ type Bengkel struct {
 	Photos       []BengkelPhoto       `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"photos"`
 	Services     []BengkelService     `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"services"`
 	Addresses    []BengkelAddress     `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"addresses"`
+	CreatedAt    time.Time            `json:"created_at"`
+	UpdatedAt    time.Time            `json:"updated_at"`
 }
