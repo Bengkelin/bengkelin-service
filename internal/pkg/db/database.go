@@ -68,7 +68,7 @@ func SetupDB() {
 		fmt.Println(err)
 	}
 	//CreateMitraSeeder()
-	createCreatedAtUpdatedAtBengkelModel()
+	//createCreatedAtUpdatedAtBengkelModel()
 }
 
 // AutoMigrate project models
