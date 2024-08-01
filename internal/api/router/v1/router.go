@@ -71,8 +71,7 @@ func Setup() *gin.Engine {
 		mitraGroup.POST("service", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelService)
 		mitraGroup.POST("photo", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelPhoto)
 		mitraGroup.PATCH("service/opsi", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelStatusOpsiService)
-		mitraGroup.GET("search", middleware.AuthJWT(), mitraHandler.GetBengkelSearchPaginate)
-		mitraGroup.GET("filter", middleware.AuthJWT(), mitraHandler.GetBengkelFilterPaginate)
+		mitraGroup.GET("search", middleware.AuthJWT(), mitraHandler.GetBengkelSearchV2Paginate)
 	}
 
 	return app
