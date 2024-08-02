@@ -88,6 +88,7 @@ func (handler *AuthHandler) UsersAuthLogin(c *gin.Context) {
 
 	response := response.BuildSuccessResponse("success login", map[string]interface{}{
 		"token": token,
+		"id":   user.ID,
 	})
 	c.JSON(http.StatusOK, response)
 }
