@@ -25,3 +25,8 @@ type BengkelServiceOptionRequest struct {
 	StoreService bool `json:"store_service"`
 	IsOpen       bool `json:"is_open"`
 }
+
+type BengkelTestimoniRequest struct {
+	Testimoni string `json:"testimoni"`
+	Rating    int    `json:"rating"`
+}

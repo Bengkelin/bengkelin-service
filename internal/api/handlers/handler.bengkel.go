@@ -45,6 +45,8 @@ type BengkelHandlerInterface interface {
 	GetAllBengkel(c *gin.Context)
 	GetAllBengkelPaginate(c *gin.Context)
 	GetBengkelSearchPaginate(c *gin.Context)
+	CreateBengkelTestimoni(c *gin.Context)
+	GetDetailBengkelById(c *gin.Context)
 }
 
 // CreateBengkel function
@@ -435,6 +437,96 @@ func (handler *BengkelHandler) GetBengkelSearchV2Paginate(c *gin.Context) {
 	response := response.BuildSuccessResponse("success get all bengkel", map[string]any{
 		"bengkels": bengkels,
 		"count":    count,
+	})
+	c.JSON(http.StatusOK, response)
+}
+
+// CreateBengkelTestimoni function
+func (handler *BengkelHandler) CreateBengkelTestimoni(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	bengkelId := c.Param("bengkelId")
+
+	bengkelRepo := repository.GetBengkelRepository()
+
+	bengkel, err := bengkelRepo.GetBengkelById(bengkelId)
+	if err != nil {
+		response := response.BuildFailedResponse("bengkel not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	var requestDataBengkelTestimoni validator.BengkelTestimoniRequest
+
+	err = c.ShouldBindJSON(&requestDataBengkelTestimoni)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to bind json", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	bengkelTestimoniRepo := repository.GetBengkelTestimoniRepository()
+
+	bengkelTestimoniModel := &models.BengkelTestimoni{
+		BengkelID: bengkel.ID,
+		UserID:    userId,
+		Testimoni: requestDataBengkelTestimoni.Testimoni,
+		Rating:    requestDataBengkelTestimoni.Rating,
+	}
+
+	_, err = bengkelTestimoniRepo.CreateBengkelTestimoni(*bengkelTestimoniModel)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to create bengkel testimoni", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success create bengkel testimoni", nil)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetAllBengkelTestimoniPaginate function
+func (handler *BengkelHandler) GetDetailBengkelById(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	bengkelId := c.Param("bengkelId")
+	page := c.Query("page")
+	limit := c.Query("limit")
+
+	pageInt, _ := strconv.Atoi(page)
+	limitInt, _ := strconv.Atoi(limit)
+
+	bengkelTestimoniRepo := repository.GetBengkelRepository()
+
+	bengkel, bengkelTestimonies, count, err := bengkelTestimoniRepo.FindBengkelById(bengkelId, pageInt, limitInt)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get detail data bengkel", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get detail data bengkel", map[string]any{
+		"bengkel":             bengkel,
+		"bengkel_testimonies": bengkelTestimonies,
+		"count":               count,
 	})
 	c.JSON(http.StatusOK, response)
 }
