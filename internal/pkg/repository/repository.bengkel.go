@@ -13,6 +13,7 @@ type BengkelRepositoryInterface interface {
 	CreateBengkel(bengkel models.Bengkel) (models.Bengkel, error)
 	UpdateBengkelById(bengkelId string, bengkel *models.Bengkel) error
 	GetBengkelById(bengkelId string) (*models.Bengkel, error)
+	FindBengkelById(bengkelId string, page, size int) (*models.Bengkel, []models.BengkelTestimoni, int, error)
 	GetAllBengkel() ([]models.Bengkel, error)
 	GetAllBengkelPaginate(page int, limit int) ([]models.Bengkel, int, error)
 	GetBengkelSearch(query string, page int, limit int) ([]models.Bengkel, int, error)
@@ -49,12 +50,40 @@ func (*BengkelRepository) UpdateBengkelById(bengkelId string, bengkel *models.Be
 	return nil
 }
 
+// FindBengkelById implements BengkelRepositoryInterface.
+func (*BengkelRepository) FindBengkelById(bengkelId string, page, size int) (*models.Bengkel, []models.BengkelTestimoni, int, error) {
+	var bengkel models.Bengkel
+	where := models.Bengkel{}
+	where.ID = bengkelId
+	_, err := First(where, &bengkel, []string{"Photos", "Services", "Addresses", "Operasionals"})
+	if err != nil {
+		return nil, nil, 0, err
+	}
+
+	var count int64
+
+	err = db.GetDB().Model(&models.BengkelTestimoni{}).Where("bengkel_id = ?", bengkelId).Count(&count).Error
+	if err != nil {
+		return nil, nil, 0, err
+	}
+
+	offset := (page - 1) * size
+
+	var testimonies []models.BengkelTestimoni
+	err = db.GetDB().Where("bengkel_id = ?", bengkelId).Preload("User").Offset(offset).Limit(size).Find(&testimonies).Error
+	if err != nil {
+		return nil, nil, 0, err
+	}
+
+	return &bengkel, testimonies, int(count), nil
+}
+
 // GetBengkelById implements BengkelRepositoryInterface.
 func (*BengkelRepository) GetBengkelById(bengkelId string) (*models.Bengkel, error) {
 	var bengkel models.Bengkel
 	where := models.Bengkel{}
 	where.ID = bengkelId
-	_, err := First(where, &bengkel, []string{"Photos"})
+	_, err := First(where, &bengkel, nil)
 	if err != nil {
 		return nil, err
 	}
