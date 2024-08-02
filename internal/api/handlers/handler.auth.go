@@ -139,6 +139,7 @@ func (handler *AuthHandler) UsersAuthRegister(c *gin.Context) {
 		response := response.BuildSuccessResponse("success register new user", map[string]interface{}{
 			"token": token,
 			"email": newUser.Email,
+			"id":   newUser.ID,
 		})
 		c.JSON(http.StatusCreated, response)
 		return
