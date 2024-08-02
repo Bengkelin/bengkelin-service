@@ -19,6 +19,7 @@ type Configuration struct {
 	Midtrans      MidtransConfiguration
 	SMTP          SMTPConfiguration
 	Supabase      SupabaseConfiguration
+	Agore         AgoreConfiguration
 }
 
 // Struct of Database Configuration instance.
@@ -88,6 +89,12 @@ type ServerConnection struct {
 	ExpiresHour int64  `mapstructure:"SERVER_EXPIRES_HOUR"`
 }
 
+type AgoreConfiguration struct {
+	AppID          string `mapstructure:"AGORA_APP_ID"`
+	AppCertificate string `mapstructure:"AGORA_APP_CERTIFICATE"`
+	ExpiryTime     string `mapstructure:"AGORA_EXPIRY_TIME"`
+}
+
 // Setup the configuration
 func Setup(configPath string) {
 	var (
@@ -99,6 +106,7 @@ func Setup(configPath string) {
 		midtransConfiguration     MidtransConfiguration
 		smtpConfiguration         SMTPConfiguration
 		supabaseConfiguration     SupabaseConfiguration
+		agoreConfiguration        AgoreConfiguration
 	)
 
 	viper.SetConfigFile(configPath)
@@ -116,6 +124,7 @@ func Setup(configPath string) {
 	unmarshalConfiguration(&midtransConfiguration)
 	unmarshalConfiguration(&smtpConfiguration)
 	unmarshalConfiguration(&supabaseConfiguration)
+	unmarshalConfiguration(&agoreConfiguration)
 
 	configuration := Configuration{
 		Database:      databaseConfiguration,
@@ -126,6 +135,7 @@ func Setup(configPath string) {
 		Midtrans:      midtransConfiguration,
 		SMTP:          smtpConfiguration,
 		Supabase:      supabaseConfiguration,
+		Agore:         agoreConfiguration,
 	}
 
 	Config = &configuration
