@@ -72,6 +72,15 @@ func Setup() *gin.Engine {
 		mitraGroup.POST("photo", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelPhoto)
 		mitraGroup.PATCH("service/opsi", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelStatusOpsiService)
 		mitraGroup.GET("search", middleware.AuthJWT(), mitraHandler.GetBengkelSearchV2Paginate)
+		mitraGroup.POST("testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.CreateBengkelTestimoni)
+		mitraGroup.GET("testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.GetDetailBengkelById)
+	}
+
+	// ChatGroup with "chat" prefix
+	chatGroup := v1Route.Group("chats")
+	chatHandler := handlers.GetChatHandler()
+	{
+		chatGroup.GET("rtmToken", middleware.AuthJWT(), chatHandler.CreateRtmToken)
 	}
 
 	return app
