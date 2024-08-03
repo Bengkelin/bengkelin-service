@@ -80,7 +80,8 @@ func Setup() *gin.Engine {
 	chatGroup := v1Route.Group("chats")
 	chatHandler := handlers.GetChatHandler()
 	{
-		chatGroup.GET("rtmToken", middleware.AuthJWT(), chatHandler.CreateRtmToken)
+		chatGroup.GET("appToken", middleware.AuthJWT(), chatHandler.CreateAppToken)
+		chatGroup.GET("chatToken/:agoraId", middleware.AuthJWT(), chatHandler.CreateChatToken)
 	}
 
 	return app

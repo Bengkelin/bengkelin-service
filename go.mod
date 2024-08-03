@@ -9,6 +9,7 @@ require (
 
 require (
 	github.com/AgoraIO-Community/go-tokenbuilder v1.3.0 // indirect
+	github.com/AgoraIO/Tools/DynamicKey/AgoraDynamicKey/go/src v0.0.0-20240731110219-ebeb49b6c32f // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect

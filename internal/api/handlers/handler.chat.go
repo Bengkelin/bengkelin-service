@@ -7,6 +7,7 @@ import (
 	"time"
 
 	rtmtokenbuilder2 "github.com/AgoraIO-Community/go-tokenbuilder/rtmtokenbuilder"
+	"github.com/AgoraIO/Tools/DynamicKey/AgoraDynamicKey/go/src/chatTokenBuilder"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
 	"github.com/Bengkelin/bengkelin-service/pkg/response"
@@ -28,6 +29,8 @@ func GetChatHandler() ChatHandlerInterface {
 
 type ChatHandlerInterface interface {
 	CreateRtmToken(c *gin.Context)
+	CreateAppToken(c *gin.Context)
+	CreateChatToken(c *gin.Context)
 }
 
 func (handler *ChatHandler) CreateRtmToken(c *gin.Context) {
@@ -79,4 +82,84 @@ func parseRtmParams(c *gin.Context) (userId string, expireTimestamp uint32, erro
 	expireTimestamp = currentTimestamp + expireTimeInSeconds
 
 	return userId, expireTimestamp, parseErr
+}
+
+func (handler *ChatHandler) CreateAppToken(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	config := config.GetConfig()
+
+	expire := config.Agore.ExpiryTime
+
+	expireUint, err := strconv.ParseUint(expire, 10, 32)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse expire time to uint32", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	appToken, err := chatTokenBuilder.BuildChatAppToken(config.Agore.AppID, config.Agore.AppCertificate, uint32(expireUint))
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get chat app token", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success create rtm token", map[string]string{
+		"app_token": appToken,
+	})
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *ChatHandler) CreateChatToken(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	agoraUserId := c.Param("agoraId")
+
+	if agoraUserId == "" {
+		response := response.BuildFailedResponse("agora user id is required", nil)
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	config := config.GetConfig()
+
+	expire := config.Agore.ExpiryTime
+
+	expireUint, err := strconv.ParseUint(expire, 10, 32)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse expire time to uint32", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	chatToken, err := chatTokenBuilder.BuildChatUserToken(config.Agore.AppID, config.Agore.AppCertificate, agoraUserId, uint32(expireUint))
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get chat app token", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success create rtm token", map[string]string{
+		"chat_token": chatToken,
+	})
+	c.JSON(http.StatusOK, response)
 }
