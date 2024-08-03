@@ -114,7 +114,7 @@ func (handler *ChatHandler) CreateAppToken(c *gin.Context) {
 		return
 	}
 
-	response := response.BuildSuccessResponse("success create rtm token", map[string]string{
+	response := response.BuildSuccessResponse("success create app token", map[string]string{
 		"app_token": appToken,
 	})
 	c.JSON(http.StatusOK, response)
@@ -158,7 +158,7 @@ func (handler *ChatHandler) CreateChatToken(c *gin.Context) {
 		return
 	}
 
-	response := response.BuildSuccessResponse("success create rtm token", map[string]string{
+	response := response.BuildSuccessResponse("success create chat token", map[string]string{
 		"chat_token": chatToken,
 	})
 	c.JSON(http.StatusOK, response)
