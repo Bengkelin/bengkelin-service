@@ -109,12 +109,12 @@ func (handler *ChatHandler) CreateAppToken(c *gin.Context) {
 	appToken, err := chatTokenBuilder.BuildChatAppToken(config.Agore.AppID, config.Agore.AppCertificate, uint32(expireUint))
 
 	if err != nil {
-		response := response.BuildFailedResponse("failed to get chat app token", err.Error())
+		response := response.BuildFailedResponse("failed to get app token", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
 		return
 	}
 
-	response := response.BuildSuccessResponse("success create rtm token", map[string]string{
+	response := response.BuildSuccessResponse("success create app token", map[string]string{
 		"app_token": appToken,
 	})
 	c.JSON(http.StatusOK, response)
@@ -153,12 +153,12 @@ func (handler *ChatHandler) CreateChatToken(c *gin.Context) {
 	chatToken, err := chatTokenBuilder.BuildChatUserToken(config.Agore.AppID, config.Agore.AppCertificate, agoraUserId, uint32(expireUint))
 
 	if err != nil {
-		response := response.BuildFailedResponse("failed to get chat app token", err.Error())
+		response := response.BuildFailedResponse("failed to get chat token", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
 		return
 	}
 
-	response := response.BuildSuccessResponse("success create rtm token", map[string]string{
+	response := response.BuildSuccessResponse("success create chat token", map[string]string{
 		"chat_token": chatToken,
 	})
 	c.JSON(http.StatusOK, response)
