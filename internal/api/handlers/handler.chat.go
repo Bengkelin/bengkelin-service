@@ -9,7 +9,10 @@ import (
 	rtmtokenbuilder2 "github.com/AgoraIO-Community/go-tokenbuilder/rtmtokenbuilder"
 	"github.com/AgoraIO/Tools/DynamicKey/AgoraDynamicKey/go/src/chatTokenBuilder"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
+	"github.com/Bengkelin/bengkelin-service/pkg/helpers"
 	"github.com/Bengkelin/bengkelin-service/pkg/response"
 	"github.com/gin-gonic/gin"
 )
@@ -31,6 +34,8 @@ type ChatHandlerInterface interface {
 	CreateRtmToken(c *gin.Context)
 	CreateAppToken(c *gin.Context)
 	CreateChatToken(c *gin.Context)
+	CreateChatHistoryUser(c *gin.Context)
+	CreateChatHistoryBengkel(c *gin.Context)
 }
 
 func (handler *ChatHandler) CreateRtmToken(c *gin.Context) {
@@ -131,7 +136,7 @@ func (handler *ChatHandler) CreateChatToken(c *gin.Context) {
 		return
 	}
 
-	agoraUserId := c.Param("agoraId")
+	agoraUserId := c.Query("agoraId")
 
 	if agoraUserId == "" {
 		response := response.BuildFailedResponse("agora user id is required", nil)
@@ -161,5 +166,92 @@ func (handler *ChatHandler) CreateChatToken(c *gin.Context) {
 	response := response.BuildSuccessResponse("success create chat token", map[string]string{
 		"chat_token": chatToken,
 	})
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *ChatHandler) CreateChatHistoryUser(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var chatRequest validator.ChatRequest
+
+	err = c.ShouldBindJSON(&chatRequest)
+	if err != nil {
+		response := response.BuildFailedResponse("request chat history doesn't match with validator", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	chatRepo := repository.GetChatHistoryRepository()
+
+	chatHistoryModel := &models.ChatHistory{
+		ID:             helpers.GenerateUUID(),
+		MessageText:    chatRequest.MessageText,
+		Type:           chatRequest.Type,
+		ImageUrl:       chatRequest.ImageUrl,
+		SenderUserId:   chatRequest.SenderUserId,
+		ReceiverUserId: chatRequest.ReceiverUserId,
+	}
+
+	res, err := chatRepo.CreateChatHistory(*chatHistoryModel)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to create chat history user", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success create chat history user", res)
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *ChatHandler) CreateChatHistoryBengkel(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+
+	mitraRepo := repository.GetMitraRepository()
+	_, err := mitraRepo.FindMitraByID(mitraId)
+
+	if err != nil {
+		response := response.BuildFailedResponse("mitra not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var chatRequest validator.ChatRequest
+
+	err = c.ShouldBindJSON(&chatRequest)
+	if err != nil {
+		response := response.BuildFailedResponse("request chat history doesn't match with validator", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	chatRepo := repository.GetChatHistoryRepository()
+
+	chatHistoryModel := &models.ChatHistory{
+		ID:             helpers.GenerateUUID(),
+		MessageText:    chatRequest.MessageText,
+		Type:           chatRequest.Type,
+		ImageUrl:       chatRequest.ImageUrl,
+		SenderUserId:   chatRequest.SenderUserId,
+		ReceiverUserId: chatRequest.ReceiverUserId,
+	}
+
+	res, err := chatRepo.CreateChatHistory(*chatHistoryModel)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to create chat history bengkel", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success create chat history bengkel", res)
 	c.JSON(http.StatusOK, response)
 }
