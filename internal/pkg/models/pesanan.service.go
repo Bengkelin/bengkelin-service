@@ -8,7 +8,6 @@ type PesananService struct {
 	ServiceName string    `gorm:"type:varchar(255)" json:"service_name"`
 	Note        string    `gorm:"type:varchar(255)" json:"note"`
 	Price       float64   `gorm:"type:float" json:"price"`
-	TotalPrice  float64   `gorm:"type:float" json:"total_price"`
 	Pesanan     Pesanan   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
