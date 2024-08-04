@@ -1,8 +1,15 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
 	"github.com/Bengkelin/bengkelin-service/pkg/response"
@@ -26,6 +33,7 @@ func GetUserHandler() UserHandlerInterface {
 type UserHandlerInterface interface {
 	GetProfile(c *gin.Context)
 	UpdateProfile(c *gin.Context)
+	UpdateAvatarUser(c *gin.Context)
 }
 
 func (handler *UserHandler) GetProfile(c *gin.Context) {
@@ -95,5 +103,71 @@ func (handler *UserHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 	response := response.BuildSuccessResponse("success update profile", user)
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *UserHandler) UpdateAvatarUser(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	avatar, err := c.FormFile("avatar")
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get file", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userRepo := repository.GetUserRepository()
+
+	_, err = userRepo.FindUserByID(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get user", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	serverConfiguration := config.GetConfig().Server
+
+	fileExt := filepath.Ext(avatar.Filename)
+
+	originalFileName := strings.TrimSuffix(filepath.Base(avatar.Filename), filepath.Ext(avatar.Filename))
+	now := time.Now()
+	fileName := strings.ReplaceAll(strings.ToLower(originalFileName), " ", "-") + "-" + fmt.Sprintf("%v", now.Unix()) + fileExt
+	res, err := os.Stat("public/avatars")
+	if os.IsNotExist(err) || !res.IsDir() {
+		os.Mkdir("public/avatars", os.ModePerm)
+	}
+
+	var directoryName string = "./public/avatars/" + fileName
+
+	fileName = strings.ReplaceAll(strings.ToLower(originalFileName), " ", "-") + "-" + fmt.Sprintf("%v", now.Unix()) + fileExt
+
+	if err := c.SaveUploadedFile(avatar, directoryName); err != nil {
+		response := response.BuildFailedResponse("failed to upload file", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var reqHost string = "true"
+
+	if serverConfiguration.DevMode == "false" {
+		reqHost = serverConfiguration.Host
+	} else {
+		reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
+	}
+
+	urlPicture := fmt.Sprintf("http://%s/api/v1/static/avatar/%s", reqHost, fileName)
+
+	userModel := &models.User{
+		AvatarUrl: urlPicture,
+	}
+
+	err = userRepo.UpdateUserById(userId, userModel)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to update avatar", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success update avatar", nil)
 	c.JSON(http.StatusOK, response)
 }
