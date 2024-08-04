@@ -13,7 +13,7 @@ type ChatHistoryRepositoryInterface interface {
 	CreateChatHistory(chatHistory models.ChatHistory) (models.ChatHistory, error)
 	UpdateChatHistoryById(chatHistoryId string, chatHistory *models.ChatHistory) error
 	GetAllChatHistory() ([]models.ChatHistory, error)
-	GetAllChatHistoryPaginate(page int, limit int) ([]models.ChatHistory, int, error)
+	GetAllChatHistoryPaginate(page int, limit int, senderId, receiverId string) ([]models.ChatHistory, int, error)
 }
 
 type ChatHistoryRepository struct{}
@@ -55,14 +55,23 @@ func (*ChatHistoryRepository) GetAllChatHistory() ([]models.ChatHistory, error) 
 }
 
 // GetAllChatHistoryPaginate implements ChatHistoryRepositoryInterface.
-func (*ChatHistoryRepository) GetAllChatHistoryPaginate(page int, limit int) ([]models.ChatHistory, int, error) {
+func (*ChatHistoryRepository) GetAllChatHistoryPaginate(page int, limit int, senderId, receiverId string) ([]models.ChatHistory, int, error) {
 	var chatHistory []models.ChatHistory
 	var total int64
-	err := db.GetDB().Model(&models.ChatHistory{}).Count(&total).Error
+	err := db.GetDB().
+		Model(&models.ChatHistory{}).
+		Where("sender_user_id = ? and receiver_user_id = ?", senderId, receiverId).
+		Count(&total).Error
+
 	if err != nil {
 		return nil, 0, err
 	}
-	err = db.GetDB().Offset((page - 1) * limit).Limit(limit).Find(&chatHistory).Error
+	err = db.GetDB().
+		Model(&models.ChatHistory{}).
+		Where("sender_user_id = ? and receiver_user_id = ?", senderId, receiverId).
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Find(&chatHistory).Error
 	if err != nil {
 		return nil, 0, err
 	}
