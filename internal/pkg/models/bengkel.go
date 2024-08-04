@@ -11,6 +11,7 @@ type Bengkel struct {
 	HomeService  *bool                `gorm:"type:bool" json:"home_service"`
 	StoreService *bool                `gorm:"type:bool" json:"store_service"`
 	IsOpen       *bool                `gorm:"type:bool" json:"is_open"`
+	AvatarUrl    string               `gorm:"type:varchar(500)" json:"avatar_url"`
 	Operasionals []BengkelOperasional `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"operasionals"`
 	Photos       []BengkelPhoto       `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"photos"`
 	Services     []BengkelService     `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"services"`
