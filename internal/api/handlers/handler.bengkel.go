@@ -47,6 +47,8 @@ type BengkelHandlerInterface interface {
 	GetBengkelSearchPaginate(c *gin.Context)
 	CreateBengkelTestimoni(c *gin.Context)
 	GetDetailBengkelById(c *gin.Context)
+	CreateBengkelPesananService(c *gin.Context)
+	UpdateAvatarBengkel(c *gin.Context)
 }
 
 // CreateBengkel function
@@ -528,5 +530,162 @@ func (handler *BengkelHandler) GetDetailBengkelById(c *gin.Context) {
 		"bengkel_testimonies": bengkelTestimonies,
 		"count":               count,
 	})
+	c.JSON(http.StatusOK, response)
+}
+
+// CreateBengkelPesananService function
+func (handler *BengkelHandler) CreateBengkelPesananService(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+	userId := c.Param("userId")
+
+	userRepo := repository.GetUserRepository()
+
+	user, err := userRepo.FindUserByID(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	mitraRepo := repository.GetMitraRepository()
+
+	mitra, err := mitraRepo.FindMitraByID(mitraId)
+	if err != nil {
+		response := response.BuildFailedResponse("mitras not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	var requestDataBengkelPesananService validator.PesananServiceRequest
+
+	err = c.ShouldBindJSON(&requestDataBengkelPesananService)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to bind json", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	bengkelPesananRepo := repository.GetPesananRepository()
+
+	isHomeService := false
+
+	pesananModel := &models.Pesanan{
+		ID:            helpers.GenerateUUID(),
+		UserID:        userId,
+		BengkelID:     mitra.Bengkel[0].ID,
+		Status:        0,
+		VehicleID:     user.Vehicles[0].ID,
+		IsHomeService: &isHomeService,
+	}
+
+	_, err = bengkelPesananRepo.CreatePesanan(*pesananModel)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to create pesanan", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	bengkelPesananServiceModel := []models.PesananService{}
+
+	for i, v := range requestDataBengkelPesananService.ServiceName {
+		bengkelPesananServiceModel = append(bengkelPesananServiceModel, models.PesananService{
+			PesananID:   pesananModel.ID,
+			ServiceName: v,
+			Note:        requestDataBengkelPesananService.Note[i],
+			Price:       requestDataBengkelPesananService.Price[i],
+		})
+		requestDataBengkelPesananService.TotalPrice += requestDataBengkelPesananService.Price[i]
+	}
+
+	bengkelPesananServiceRepo := repository.GetPesananServiceRepository()
+
+	for _, v := range bengkelPesananServiceModel {
+		_, err = bengkelPesananServiceRepo.CreatePesananService(v)
+		if err != nil {
+			response := response.BuildFailedResponse("failed to create pesanan service", err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+	}
+
+	pesananModel.TotalPrice = requestDataBengkelPesananService.TotalPrice
+
+	err = bengkelPesananRepo.UpdatePesananById(pesananModel.ID, pesananModel)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to update pesanan", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success create bengkel pesanan service", nil)
+	c.JSON(http.StatusOK, response)
+}
+
+// UpdateAvatarBengkel function
+func (handler *BengkelHandler) UpdateAvatarBengkel(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+
+	mitraRepo := repository.GetMitraRepository()
+
+	mitra, err := mitraRepo.GetMitraByID(mitraId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get mitra", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	avatar, err := c.FormFile("avatar")
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get avatar url", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	serverConfiguration := config.GetConfig().Server
+
+	fileExt := filepath.Ext(avatar.Filename)
+
+	originalFileName := strings.TrimSuffix(filepath.Base(avatar.Filename), filepath.Ext(avatar.Filename))
+	now := time.Now()
+	fileName := strings.ReplaceAll(strings.ToLower(originalFileName), " ", "-") + "-" + fmt.Sprintf("%v", now.Unix()) + fileExt
+	res, err := os.Stat("public/avatars")
+	if os.IsNotExist(err) || !res.IsDir() {
+		os.Mkdir("public/avatars", os.ModePerm)
+	}
+
+	var directoryName string = "./public/avatars/" + fileName
+
+	fileName = strings.ReplaceAll(strings.ToLower(originalFileName), " ", "-") + "-" + fmt.Sprintf("%v", now.Unix()) + fileExt
+
+	if err := c.SaveUploadedFile(avatar, directoryName); err != nil {
+		response := response.BuildFailedResponse("failed to upload file", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var reqHost string = "true"
+
+	if serverConfiguration.DevMode == "false" {
+		reqHost = serverConfiguration.Host
+	} else {
+		reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
+	}
+
+	urlPicture := fmt.Sprintf("http://%s/api/v1/static/avatar/%s", reqHost, fileName)
+
+	bengkelModel := &models.Bengkel{
+		AvatarUrl: urlPicture,
+	}
+
+	bengkelRepo := repository.GetBengkelRepository()
+
+	err = bengkelRepo.UpdateBengkelById(mitra.Bengkel[0].ID, bengkelModel)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to update bengkel avatar", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success update bengkel avatar", nil)
 	c.JSON(http.StatusOK, response)
 }
