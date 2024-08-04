@@ -81,7 +81,9 @@ func Setup() *gin.Engine {
 	chatHandler := handlers.GetChatHandler()
 	{
 		chatGroup.GET("appToken", middleware.AuthJWT(), chatHandler.CreateAppToken)
-		chatGroup.GET("chatToken/:agoraId", middleware.AuthJWT(), chatHandler.CreateChatToken)
+		chatGroup.GET("chatToken", middleware.AuthJWT(), chatHandler.CreateChatToken)
+		chatGroup.POST("user/history", middleware.AuthJWT(), chatHandler.CreateChatHistoryUser)
+		chatGroup.POST("bengkel/history", middleware.AuthJWTMitra(), chatHandler.CreateChatHistoryBengkel)
 	}
 
 	return app
