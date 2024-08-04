@@ -68,7 +68,7 @@ func SetupDB() {
 		fmt.Println(err)
 	}
 	//CreateMitraSeeder()
-	//createCreatedAtUpdatedAtBengkelModel()
+	//CreateCreatedAtUpdatedAtBengkelModel()
 }
 
 // AutoMigrate project models
@@ -85,6 +85,9 @@ func migrateTable() error {
 		&models.BengkelAddress{},
 		&models.BengkelService{},
 		&models.BengkelTestimoni{},
+		&models.ChatHistory{},
+		&models.Pesanan{},
+		&models.PesananService{},
 	)
 	if err != nil {
 		return err
@@ -93,7 +96,6 @@ func migrateTable() error {
 }
 
 func CreateMitraSeeder() {
-
 	var id []string
 	// create 10 mitra using batch insert
 	for i := 1; i <= 10; i++ {
@@ -171,10 +173,9 @@ func CreateMitraSeeder() {
 		}
 		DB.Create(&bengkelService)
 	}
-
 }
 
-func createCreatedAtUpdatedAtBengkelModel() {
+func CreateCreatedAtUpdatedAtBengkelModel() {
 	var bengkels []models.Bengkel
 	DB.Find(&bengkels)
 	for _, bengkel := range bengkels {
