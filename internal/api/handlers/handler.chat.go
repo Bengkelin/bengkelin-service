@@ -36,6 +36,8 @@ type ChatHandlerInterface interface {
 	CreateChatToken(c *gin.Context)
 	CreateChatHistoryUser(c *gin.Context)
 	CreateChatHistoryBengkel(c *gin.Context)
+	GetChatHistoryUser(c *gin.Context)
+	GetChatHistoryBengkel(c *gin.Context)
 }
 
 func (handler *ChatHandler) CreateRtmToken(c *gin.Context) {
@@ -255,3 +257,102 @@ func (handler *ChatHandler) CreateChatHistoryBengkel(c *gin.Context) {
 	response := response.BuildSuccessResponse("success create chat history bengkel", res)
 	c.JSON(http.StatusOK, response)
 }
+
+func (handler *ChatHandler) GetChatHistoryUser(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	page := c.Query("page")
+	limit := c.Query("limit")
+	senderId := c.Query("senderId")
+	receiverId := c.Query("receiverId")
+
+	pageInt, err := strconv.Atoi(page)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse page to int", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+	limitInt, err := strconv.Atoi(limit)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse limit to int", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	chatRepo := repository.GetChatHistoryRepository()
+
+	res, count, err := chatRepo.GetAllChatHistoryPaginate(pageInt, limitInt, senderId, receiverId)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get chat history user", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get chat history user", map[string]interface{}{
+		"chat_history": res,
+		"total":        count,
+	})
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *ChatHandler) GetChatHistoryBengkel(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+
+	mitraRepo := repository.GetMitraRepository()
+	_, err := mitraRepo.FindMitraByID(mitraId)
+
+	if err != nil {
+		response := response.BuildFailedResponse("mitra not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	page := c.Query("page")
+	limit := c.Query("limit")
+	senderId := c.Query("senderId")
+	receiverId := c.Query("receiverId")
+
+	pageInt, err := strconv.Atoi(page)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse page to int", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+	limitInt, err := strconv.Atoi(limit)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse limit to int", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	chatRepo := repository.GetChatHistoryRepository()
+
+	res, count, err := chatRepo.GetAllChatHistoryPaginate(pageInt, limitInt, senderId, receiverId)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get chat history bengkel", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get chat history bengkel", map[string]interface{}{
+		"chat_history": res,
+		"total":        count,
+	})
+	c.JSON(http.StatusOK, response)
+}
+
+
