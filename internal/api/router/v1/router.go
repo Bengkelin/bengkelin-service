@@ -35,6 +35,7 @@ func Setup() *gin.Engine {
 
 	v1Route.StaticFS("/static/vehicle", http.Dir("public/vehicles"))
 	v1Route.StaticFS("/static/bengkel", http.Dir("public/bengkels"))
+	v1Route.StaticFS("/static/avatar", http.Dir("public/avatars"))
 	// AuthGroup with "auth" prefix
 	authGroup := v1Route.Group("users/auth")
 	authHandler := handlers.GetAuthHandler()
@@ -58,6 +59,7 @@ func Setup() *gin.Engine {
 	{
 		userGroup.GET("profile", middleware.AuthJWT(), userHandler.GetProfile)
 		userGroup.PATCH("profile", middleware.AuthJWT(), userHandler.UpdateProfile)
+		userGroup.PATCH("avatar", middleware.AuthJWT(), userHandler.UpdateAvatarUser)
 	}
 
 	// MitraGroup with "mitra" prefix
@@ -74,6 +76,8 @@ func Setup() *gin.Engine {
 		mitraGroup.GET("search", middleware.AuthJWT(), mitraHandler.GetBengkelSearchV2Paginate)
 		mitraGroup.POST("testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.CreateBengkelTestimoni)
 		mitraGroup.GET("testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.GetDetailBengkelById)
+		mitraGroup.PATCH("avatar", middleware.AuthJWTMitra(), mitraHandler.UpdateAvatarBengkel)
+		mitraGroup.POST("order/service", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelPesananService)
 	}
 
 	// ChatGroup with "chat" prefix
@@ -84,6 +88,8 @@ func Setup() *gin.Engine {
 		chatGroup.GET("chatToken", middleware.AuthJWT(), chatHandler.CreateChatToken)
 		chatGroup.POST("user/history", middleware.AuthJWT(), chatHandler.CreateChatHistoryUser)
 		chatGroup.POST("bengkel/history", middleware.AuthJWTMitra(), chatHandler.CreateChatHistoryBengkel)
+		chatGroup.GET("user/history", middleware.AuthJWT(), chatHandler.GetChatHistoryUser)
+		chatGroup.GET("bengkel/history", middleware.AuthJWTMitra(), chatHandler.GetChatHistoryBengkel)
 	}
 
 	return app
