@@ -244,7 +244,7 @@ func (handler *AuthHandler) UsersNewVehicle(c *gin.Context) {
 			reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
 		}
 
-		urlPicture := fmt.Sprintf("http://%s/api/v1/static/vehicle/%s", reqHost, fileName)
+		urlPicture := fmt.Sprintf("https://%s/api/v1/static/vehicle/%s", reqHost, fileName)
 		urlPictures = append(urlPictures, urlPicture)
 	}
 
