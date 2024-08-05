@@ -264,7 +264,7 @@ func (handler *BengkelHandler) CreateBengkelPhoto(c *gin.Context) {
 			reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
 		}
 
-		urlPicture := fmt.Sprintf("http://%s/api/v1/static/bengkel/%s", reqHost, fileName)
+		urlPicture := fmt.Sprintf("https://%s/api/v1/static/bengkel/%s", reqHost, fileName)
 		urlPictures = append(urlPictures, urlPicture)
 	}
 
@@ -671,7 +671,7 @@ func (handler *BengkelHandler) UpdateAvatarBengkel(c *gin.Context) {
 		reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
 	}
 
-	urlPicture := fmt.Sprintf("http://%s/api/v1/static/avatar/%s", reqHost, fileName)
+	urlPicture := fmt.Sprintf("https://%s/api/v1/static/avatar/%s", reqHost, fileName)
 
 	bengkelModel := &models.Bengkel{
 		AvatarUrl: urlPicture,

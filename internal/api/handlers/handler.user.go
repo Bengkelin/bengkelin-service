@@ -155,7 +155,7 @@ func (handler *UserHandler) UpdateAvatarUser(c *gin.Context) {
 		reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
 	}
 
-	urlPicture := fmt.Sprintf("http://%s/api/v1/static/avatar/%s", reqHost, fileName)
+	urlPicture := fmt.Sprintf("https://%s/api/v1/static/avatar/%s", reqHost, fileName)
 
 	userModel := &models.User{
 		AvatarUrl: urlPicture,
