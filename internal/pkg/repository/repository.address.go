@@ -13,6 +13,7 @@ type AddressRepositoryInterface interface {
 	CreateAddress(address models.AddressUser) (models.AddressUser, error)
 	UpdateAddressById(addressId uint, userId string, address *models.AddressUser) error
 	GetAddressById(userId string) (*models.AddressUser, error)
+	DeleteAddressById(addressId uint, userId string) error
 }
 
 type AddressRepository struct{}
@@ -54,4 +55,13 @@ func (*AddressRepository) GetAddressById(userId string) (*models.AddressUser, er
 		return nil, err
 	}
 	return &address, nil
+}
+
+// DeleteAddressById implements AddressRepositoryInterface.
+func (*AddressRepository) DeleteAddressById(addressId uint, userId string) error {
+	err := db.GetDB().Where("id = ? AND user_id = ?", addressId, userId).Delete(&models.AddressUser{}).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }
