@@ -77,7 +77,10 @@ func Setup() *gin.Engine {
 		mitraGroup.POST("testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.CreateBengkelTestimoni)
 		mitraGroup.GET("testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.GetDetailBengkelById)
 		mitraGroup.PATCH("avatar", middleware.AuthJWTMitra(), mitraHandler.UpdateAvatarBengkel)
-		mitraGroup.POST("order/service", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelPesananService)
+		mitraGroup.POST("order/service/:userId", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelPesananService)
+		mitraGroup.GET("order/service/:pesananId", middleware.AuthJWT(), mitraHandler.GetBengkelPesananServiceById)
+		mitraGroup.GET("order/schedule", middleware.AuthJWT(), mitraHandler.GetBengkelOperasionalByIdAndDay)
+		mitraGroup.PATCH("order/service/:pesananId", middleware.AuthJWT(), mitraHandler.UpdateBengkelPesananServiceById)
 	}
 
 	// ChatGroup with "chat" prefix
@@ -90,6 +93,13 @@ func Setup() *gin.Engine {
 		chatGroup.POST("bengkel/history", middleware.AuthJWTMitra(), chatHandler.CreateChatHistoryBengkel)
 		chatGroup.GET("user/history", middleware.AuthJWT(), chatHandler.GetChatHistoryUser)
 		chatGroup.GET("bengkel/history", middleware.AuthJWTMitra(), chatHandler.GetChatHistoryBengkel)
+	}
+
+	// admin group with "admin" prefix
+	adminGroup := v1Route.Group("admins")
+	adminHandler := handlers.GetAdminFeeHandler()
+	{
+		adminGroup.POST("fee", adminHandler.CreateAdminFee)
 	}
 
 	return app
