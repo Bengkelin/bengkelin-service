@@ -48,7 +48,11 @@ type BengkelHandlerInterface interface {
 	CreateBengkelTestimoni(c *gin.Context)
 	GetDetailBengkelById(c *gin.Context)
 	CreateBengkelPesananService(c *gin.Context)
+	GetAllBengkelPesananServicePaginate(c *gin.Context)
+	GetBengkelPesananServiceById(c *gin.Context)
 	UpdateAvatarBengkel(c *gin.Context)
+	GetBengkelOperasionalByIdAndDay(c *gin.Context)
+	UpdateBengkelPesananServiceById(c *gin.Context)
 }
 
 // CreateBengkel function
@@ -457,12 +461,22 @@ func (handler *BengkelHandler) CreateBengkelTestimoni(c *gin.Context) {
 	}
 
 	bengkelId := c.Param("bengkelId")
+	pesananId := c.Param("pesananId")
 
 	bengkelRepo := repository.GetBengkelRepository()
 
 	bengkel, err := bengkelRepo.GetBengkelById(bengkelId)
 	if err != nil {
 		response := response.BuildFailedResponse("bengkel not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	pesananRepo := repository.GetPesananRepository()
+
+	pesananData, err := pesananRepo.GetPesananById(pesananId)
+	if err != nil {
+		response := response.BuildFailedResponse("pesanan not found", err.Error())
 		c.AbortWithStatusJSON(http.StatusNotFound, response)
 		return
 	}
@@ -481,6 +495,7 @@ func (handler *BengkelHandler) CreateBengkelTestimoni(c *gin.Context) {
 	bengkelTestimoniModel := &models.BengkelTestimoni{
 		BengkelID: bengkel.ID,
 		UserID:    userId,
+		PesananID: pesananData.ID,
 		Testimoni: requestDataBengkelTestimoni.Testimoni,
 		Rating:    requestDataBengkelTestimoni.Rating,
 	}
@@ -565,6 +580,13 @@ func (handler *BengkelHandler) CreateBengkelPesananService(c *gin.Context) {
 		return
 	}
 
+	adminFeeRepo := repository.GetAdminFeeRepository()
+	adminFeeData, err := adminFeeRepo.GetOneAdminFeeLatest()
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get admin fee", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
 	bengkelPesananRepo := repository.GetPesananRepository()
 
 	isHomeService := false
@@ -576,6 +598,7 @@ func (handler *BengkelHandler) CreateBengkelPesananService(c *gin.Context) {
 		Status:        0,
 		VehicleID:     user.Vehicles[0].ID,
 		IsHomeService: &isHomeService,
+		AdminFee:      adminFeeData.AdminFee,
 	}
 
 	_, err = bengkelPesananRepo.CreatePesanan(*pesananModel)
@@ -687,5 +710,147 @@ func (handler *BengkelHandler) UpdateAvatarBengkel(c *gin.Context) {
 	}
 
 	response := response.BuildSuccessResponse("success update bengkel avatar", nil)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetBenkelPesananServiceById function
+func (handler *BengkelHandler) GetBengkelPesananServiceById(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	pesananId := c.Param("pesananId")
+
+	if pesananId == "" {
+		response := response.BuildFailedResponse("failed to get pesanan", "pesananId params is empty")
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	bengkelPesananRepo := repository.GetPesananRepository()
+
+	pesanan, err := bengkelPesananRepo.GetDetailPesananById(pesananId, userId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get pesanan", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get pesanan service", pesanan)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetBengkelOperasionalByIdAndDay function
+func (handler *BengkelHandler) GetBengkelOperasionalByIdAndDay(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	bengkelId := c.Query("bengkelId")
+	day := c.Query("day")
+
+	bengkelOperasionalRepo := repository.GetBengkelOperasionalRepository()
+
+	bengkelOperasional, err := bengkelOperasionalRepo.GetBengkelOperasionalByIdAndDay(bengkelId, day)
+
+	var dataTimePerHours []string
+	var timePerHoursOpen []string
+	var timePerHoursClose []string
+
+	if bengkelOperasional.JamBuka != "" {
+		dataTimePerHours = strings.Split(bengkelOperasional.JamBuka, " - ")
+	}
+
+	start, _ := time.Parse("15:04", dataTimePerHours[0])
+	end, _ := time.Parse("15:04", dataTimePerHours[1])
+
+	for current := start; current.Before(end); current = current.Add(time.Hour) {
+		next := current.Add(time.Hour)
+		timePerHoursOpen = append(timePerHoursOpen, current.Format("15:04"))
+		timePerHoursClose = append(timePerHoursClose, next.Format("15:04"))
+	}
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get bengkel operasional by day", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	data := make(map[int]string)
+
+	for i := 0; i < len(timePerHoursOpen); i++ {
+		data[i] = timePerHoursOpen[i] + " - " + timePerHoursClose[i]
+	}
+
+	response := response.BuildSuccessResponse("success get bengkel operasional by day", data)
+	c.JSON(http.StatusOK, response)
+}
+
+// UpdateBengkelPesananServiceById function
+func (handler *BengkelHandler) UpdateBengkelPesananServiceById(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	pesananId := c.Param("pesananId")
+
+	if pesananId == "" {
+		response := response.BuildFailedResponse("failed to get pesanan", "pesananId params is empty")
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var requestUpdateBengkelService validator.PesananUpdateRequest
+
+	err = c.ShouldBindJSON(&requestUpdateBengkelService)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to bind json", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	bengkelPesananRepo := repository.GetPesananRepository()
+
+	pesanan, err := bengkelPesananRepo.GetDetailPesananById(pesananId, userId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get pesanan", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	err = bengkelPesananRepo.UpdatePesananById(pesanan.ID,
+		&models.Pesanan{
+			IsHomeService:       &requestUpdateBengkelService.IsHomeService,
+			HomeServiceSchedule: requestUpdateBengkelService.HomeServiceSchedule,
+			PaymentMethod:       requestUpdateBengkelService.PaymentMethod,
+		})
+	if err != nil {
+		response := response.BuildFailedResponse("failed to update pesanan", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success update bengkel pesanan service", nil)
 	c.JSON(http.StatusOK, response)
 }
