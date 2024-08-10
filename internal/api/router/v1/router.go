@@ -60,6 +60,8 @@ func Setup() *gin.Engine {
 		userGroup.GET("profile", middleware.AuthJWT(), userHandler.GetProfile)
 		userGroup.PATCH("profile", middleware.AuthJWT(), userHandler.UpdateProfile)
 		userGroup.PATCH("avatar", middleware.AuthJWT(), userHandler.UpdateAvatarUser)
+		userGroup.DELETE("address", middleware.AuthJWT(), userHandler.DeleteAddressUser)
+		userGroup.DELETE("vehicle", middleware.AuthJWT(), userHandler.DeleteVehicleUser)
 	}
 
 	// MitraGroup with "mitra" prefix
