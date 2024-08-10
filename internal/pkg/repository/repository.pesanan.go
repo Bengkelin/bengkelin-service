@@ -12,6 +12,8 @@ var (
 type PesananRepositoryInterface interface {
 	CreatePesanan(pesanan models.Pesanan) (models.Pesanan, error)
 	UpdatePesananById(pesananId string, pesanan *models.Pesanan) error
+	GetPesananById(pesananId string) (*models.Pesanan, error)
+	GetDetailPesananById(pesananId, userId string) (*models.Pesanan, error)
 	GetAllPesanan() ([]models.Pesanan, error)
 }
 
@@ -51,4 +53,34 @@ func (*PesananRepository) GetAllPesanan() ([]models.Pesanan, error) {
 		return nil, err
 	}
 	return pesanan, nil
+}
+
+// GetPesananById implements PesananRepositoryInterface.
+func (*PesananRepository) GetPesananById(pesananId string) (*models.Pesanan, error) {
+	var pesanan models.Pesanan
+	where := models.Pesanan{}
+	where.ID = pesananId
+	err := db.GetDB().First(where, &pesanan, nil).Error
+	if err != nil {
+		return nil, err
+	}
+	return &pesanan, nil
+}
+
+// GetDetailPesananById implements PesananRepositoryInterface.
+func (*PesananRepository) GetDetailPesananById(pesananId, userId string) (*models.Pesanan, error) {
+	var pesanan models.Pesanan
+	err := db.GetDB().
+		Model(&models.Pesanan{}).
+		Preload("PesananService").
+		Preload("User").
+		Preload("Bengkel").
+		Preload("Bengkel.Addresses").
+		Preload("Vehicle").
+		Where("id = ? AND user_id = ?", pesananId, userId).
+		Take(&pesanan).Error
+	if err != nil {
+		return nil, err
+	}
+	return &pesanan, nil
 }
