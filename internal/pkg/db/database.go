@@ -67,8 +67,8 @@ func SetupDB() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	CreateMitraSeeder()
-	CreateCreatedAtUpdatedAtBengkelModel()
+	//CreateMitraSeeder()
+	//CreateCreatedAtUpdatedAtBengkelModel()
 }
 
 // AutoMigrate project models
@@ -88,6 +88,7 @@ func migrateTable() error {
 		&models.ChatHistory{},
 		&models.Pesanan{},
 		&models.PesananService{},
+		&models.AdminFee{},
 	)
 	if err != nil {
 		return err
