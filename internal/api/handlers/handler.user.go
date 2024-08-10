@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -177,16 +178,31 @@ func (handler *UserHandler) UpdateAvatarUser(c *gin.Context) {
 func (handler *UserHandler) DeleteAddressUser(c *gin.Context) {
 	userId := c.MustGet("id").(string)
 
+	addressId := c.Param("addressId")
+
+	if addressId == "" {
+		response := response.BuildFailedResponse("address id is required", nil)
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	addressIdUint, err := strconv.ParseUint(addressId, 10, 64)
+	if err != nil {
+		response := response.BuildFailedResponse("address id must be a number", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
 	addressRepo := repository.GetAddressRepository()
 
-	data, err := addressRepo.GetAddressById(userId)
+	_, err = addressRepo.GetAddressById(userId)
 	if err != nil {
 		response := response.BuildFailedResponse("failed to get address", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
 		return
 	}
 
-	err = addressRepo.DeleteAddressById(data.ID, userId)
+	err = addressRepo.DeleteAddressById(uint(addressIdUint), userId)
 	if err != nil {
 		response := response.BuildFailedResponse("failed to delete address", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
@@ -202,14 +218,29 @@ func (handler *UserHandler) DeleteVehicleUser(c *gin.Context) {
 
 	vehicleRepo := repository.GetVehicleRepository()
 
-	data, err := vehicleRepo.GetVehicleById(userId)
+	vehicleId := c.Param("vehicleId")
+
+	if vehicleId == "" {
+		response := response.BuildFailedResponse("vehicle id is required", nil)
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	vehicleIdUint, err := strconv.ParseUint(vehicleId, 10, 64)
+	if err != nil {
+		response := response.BuildFailedResponse("vehicle id must be a number", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	_, err = vehicleRepo.GetVehicleById(userId)
 	if err != nil {
 		response := response.BuildFailedResponse("failed to get vehicle", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
 		return
 	}
 
-	err = vehicleRepo.DeleteVehicleById(data.ID, userId)
+	err = vehicleRepo.DeleteVehicleById(uint(vehicleIdUint), userId)
 	if err != nil {
 		response := response.BuildFailedResponse("failed to delete vehicle", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
