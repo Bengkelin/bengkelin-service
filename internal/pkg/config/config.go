@@ -83,6 +83,7 @@ type ServerConnection struct {
 	Port        string `mapstructure:"SERVER_PORT"`
 	Secret      string `mapstructure:"SERVER_SECRET"`
 	Secret2     string `mapstructure:"SERVER_SECRET2"`
+	ApiSecret   string `mapstructure:"API_SECRET"`
 	DevMode     string `mapstructure:"SERVER_DEV_MODE"`
 	Mode        string `mapstructure:"SERVER_MODE"`
 	Name        string `mapstructure:"SERVER_NAME"`
