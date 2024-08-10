@@ -13,6 +13,7 @@ type BengkelOperasionalRepositoryInterface interface {
 	CreateBengkelOperasional(bengkelOperasional models.BengkelOperasional) (models.BengkelOperasional, error)
 	UpdateBengkelOperasionalById(bengkelOperasionalId string, bengkelOperasional *models.BengkelOperasional) error
 	GetBengkelOperasionalById(bengkelId string) (*models.BengkelOperasional, error)
+	GetBengkelOperasionalByIdAndDay(bengkelId, day string) (*models.BengkelOperasional, error)
 }
 
 type BengkelOperasionalRepository struct{}
@@ -32,7 +33,7 @@ func (repo *BengkelOperasionalRepository) CreateBengkelOperasional(bengkelOperas
 		return models.BengkelOperasional{}, err
 	}
 	return bengkelOperasional, nil
-}	
+}
 
 // UpdateBengkelOperasionalById implements BengkelOperasionalRepositoryInterface.
 func (*BengkelOperasionalRepository) UpdateBengkelOperasionalById(bengkelOperasionalId string, bengkelOperasional *models.BengkelOperasional) error {
@@ -50,6 +51,16 @@ func (*BengkelOperasionalRepository) GetBengkelOperasionalById(bengkelId string)
 	where := models.BengkelOperasional{}
 	where.BengkelID = bengkelId
 	_, err := First(where, &bengkelOperasional, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &bengkelOperasional, nil
+}
+
+// GetBengkelOperasionalByIdAndDay implements BengkelOperasionalRepositoryInterface.
+func (*BengkelOperasionalRepository) GetBengkelOperasionalByIdAndDay(bengkelId, day string) (*models.BengkelOperasional, error) {
+	var bengkelOperasional models.BengkelOperasional
+	err := db.GetDB().Where("bengkel_id = ? AND hari LIKE ?", bengkelId, "%"+day+"%").First(&bengkelOperasional).Error
 	if err != nil {
 		return nil, err
 	}
