@@ -4,7 +4,7 @@ import "time"
 
 type Bengkel struct {
 	ID           string               `gorm:"primary_key;type:varchar(36)" json:"bengkel_id"`
-	MitraID      string               `gorm:"reference" json:"-"`
+	MitraID      string               `gorm:"reference;unique" json:"-"`
 	BengkelName  string               `gorm:"type:varchar(255)" json:"bengkel_name"`
 	BengkelPhone string               `gorm:"type:varchar(255)" json:"bengkel_phone"`
 	JumlahMontir uint                 `gorm:"type:int" json:"jumlah_montir"`
