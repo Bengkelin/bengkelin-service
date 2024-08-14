@@ -18,6 +18,7 @@ import (
 	"github.com/Bengkelin/bengkelin-service/pkg/response"
 	"github.com/gin-gonic/gin"
 	"github.com/mashingan/smapping"
+	"gorm.io/gorm"
 )
 
 var (
@@ -27,10 +28,12 @@ var (
 type AuthHandler struct{}
 
 type AuthHandlerInterface interface {
+	UsersAuthGoogle(c *gin.Context)
 	UsersAuthLogin(c *gin.Context)
 	UsersAuthRegister(c *gin.Context)
 	UsersNewAddress(c *gin.Context)
 	UsersNewVehicle(c *gin.Context)
+	MitrasAuthGoogle(c *gin.Context)
 	MitrasAuthLogin(c *gin.Context)
 	MitrasAuthRegister(c *gin.Context)
 	MitrasNewBank(c *gin.Context)
@@ -41,6 +44,68 @@ func GetAuthHandler() AuthHandlerInterface {
 		authHandler = &AuthHandler{}
 	}
 	return authHandler
+}
+
+func (handler *AuthHandler) UsersAuthGoogle(c *gin.Context) {
+	var googleRequest validator.GoogleAuthRequest
+
+	err := c.ShouldBind(&googleRequest)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to login with google", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userRepo := repository.GetUserRepository()
+
+	user, err := userRepo.FindUserByEmail(googleRequest.Email)
+
+	if err == gorm.ErrRecordNotFound {
+		userModel := &models.User{
+			ID:        helpers.GenerateUUID(),
+			FirstName: googleRequest.FirstName,
+			Email:     googleRequest.Email,
+		}
+
+		newUser, err := userRepo.CreateUser(*userModel)
+		if err != nil {
+			response := response.BuildFailedResponse("failed to register with google", err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+		tokenHelper := crypto.GetJWTCrypto()
+		token, err := tokenHelper.GenerateToken(fmt.Sprint(newUser.ID))
+
+		if err != nil {
+			response := response.BuildFailedResponse("wrong credential", err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+		response := response.BuildSuccessResponse("success login with google", map[string]interface{}{
+			"token": token,
+			"email": newUser.Email,
+		})
+		c.JSON(http.StatusCreated, response)
+		return
+	}
+
+	if len(user.ID) == 36 {
+		tokenHelper := crypto.GetJWTCrypto()
+		token, err := tokenHelper.GenerateToken(fmt.Sprint(user.ID))
+
+		if err != nil {
+			response := response.BuildFailedResponse("wrong credential", err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+		response := response.BuildSuccessResponse("success login with google", map[string]interface{}{
+			"token": token,
+			"email": user.Email,
+		})
+		c.JSON(http.StatusOK, response)
+		return
+	}
 }
 
 func (handler *AuthHandler) UsersAuthLogin(c *gin.Context) {
@@ -270,6 +335,68 @@ func (handler *AuthHandler) UsersNewVehicle(c *gin.Context) {
 
 	response := response.BuildSuccessResponse("success attach new vehicle photos", dataVehicle)
 	c.JSON(http.StatusCreated, response)
+}
+
+func (handler *AuthHandler) MitrasAuthGoogle(c *gin.Context) {
+	var googleRequest validator.GoogleAuthRequest
+
+	err := c.ShouldBind(&googleRequest)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to login with google", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	mitraRepo := repository.GetMitraRepository()
+
+	mitra, err := mitraRepo.FindMitraByEmail(googleRequest.Email)
+
+	if err == gorm.ErrRecordNotFound {
+		mitraModel := &models.Mitra{
+			ID:        helpers.GenerateUUID(),
+			FirstName: googleRequest.FirstName,
+			Email:     googleRequest.Email,
+		}
+
+		newMitra, err := mitraRepo.CreateMitra(*mitraModel)
+		if err != nil {
+			response := response.BuildFailedResponse("failed to register with google", err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+		tokenHelper := crypto.GetJWTCrypto()
+		token, err := tokenHelper.GenerateTokenMitra(fmt.Sprint(newMitra.ID))
+
+		if err != nil {
+			response := response.BuildFailedResponse("wrong credential", err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+		response := response.BuildSuccessResponse("success login with google", map[string]interface{}{
+			"token": token,
+			"email": newMitra.Email,
+		})
+		c.JSON(http.StatusCreated, response)
+		return
+	}
+
+	if len(mitra.ID) == 36 {
+		tokenHelper := crypto.GetJWTCrypto()
+		token, err := tokenHelper.GenerateTokenMitra(fmt.Sprint(mitra.ID))
+
+		if err != nil {
+			response := response.BuildFailedResponse("wrong credential", err.Error())
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+		response := response.BuildSuccessResponse("success login with google", map[string]interface{}{
+			"token": token,
+			"email": mitra.Email,
+		})
+		c.JSON(http.StatusOK, response)
+		return
+	}
 }
 
 func (handler *AuthHandler) MitrasAuthLogin(c *gin.Context) {
