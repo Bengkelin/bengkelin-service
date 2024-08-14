@@ -6,6 +6,11 @@ type LoginRequest struct {
 	Password string `json:"password" form:"password" binding:"required"`
 }
 
+type GoogleAuthRequest struct {
+	Email     string `json:"email" binding:"required,email"`
+	FirstName string `json:"first_name"`
+}
+
 // Struct that define the validator/binding of Register Request
 type RegisterRequest struct {
 	Name     string `json:"name" form:"name" binding:"required,min=1"`
