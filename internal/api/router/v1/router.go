@@ -41,6 +41,7 @@ func Setup() *gin.Engine {
 	authHandler := handlers.GetAuthHandler()
 	{
 		authGroup.POST("login", authHandler.UsersAuthLogin)
+		authGroup.POST("google", authHandler.UsersAuthGoogle)
 		authGroup.POST("register", authHandler.UsersAuthRegister)
 		authGroup.POST("address", middleware.AuthJWT(), authHandler.UsersNewAddress)
 		authGroup.POST("vehicle", middleware.AuthJWT(), authHandler.UsersNewVehicle)
@@ -50,6 +51,7 @@ func Setup() *gin.Engine {
 	authMitraGroup := v1Route.Group("mitras/auth")
 	{
 		authMitraGroup.POST("login", authHandler.MitrasAuthLogin)
+		authMitraGroup.POST("google", authHandler.MitrasAuthGoogle)
 		authMitraGroup.POST("register", authHandler.MitrasAuthRegister)
 		authMitraGroup.POST("bank", middleware.AuthJWTMitra(), authHandler.MitrasNewBank)
 	}
