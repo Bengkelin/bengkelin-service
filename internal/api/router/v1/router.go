@@ -93,6 +93,8 @@ func Setup() *gin.Engine {
 	{
 		chatGroup.GET("appToken", middleware.AuthJWT(), chatHandler.CreateAppToken)
 		chatGroup.GET("chatToken", middleware.AuthJWT(), chatHandler.CreateChatToken)
+		chatGroup.GET("chatTokenMitra", middleware.AuthJWTMitra(), chatHandler.CreateChatTokenMitra)
+		chatGroup.GET("appTokenMitra", middleware.AuthJWTMitra(), chatHandler.CreateAppTokenMitra)
 		chatGroup.POST("user/history", middleware.AuthJWT(), chatHandler.CreateChatHistoryUser)
 		chatGroup.POST("bengkel/history", middleware.AuthJWTMitra(), chatHandler.CreateChatHistoryBengkel)
 		chatGroup.GET("user/history", middleware.AuthJWT(), chatHandler.GetChatHistoryUser)

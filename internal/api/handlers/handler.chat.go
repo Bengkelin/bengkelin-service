@@ -34,6 +34,8 @@ type ChatHandlerInterface interface {
 	CreateRtmToken(c *gin.Context)
 	CreateAppToken(c *gin.Context)
 	CreateChatToken(c *gin.Context)
+	CreateAppTokenMitra(c *gin.Context)
+	CreateChatTokenMitra(c *gin.Context)
 	CreateChatHistoryUser(c *gin.Context)
 	CreateChatHistoryBengkel(c *gin.Context)
 	GetChatHistoryUser(c *gin.Context)
@@ -151,6 +153,89 @@ func (handler *ChatHandler) CreateChatToken(c *gin.Context) {
 	expire := config.Agore.ExpiryTime
 
 	expireUint, err := strconv.ParseUint(expire, 10, 32)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse expire time to uint32", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	chatToken, err := chatTokenBuilder.BuildChatUserToken(config.Agore.AppID, config.Agore.AppCertificate, agoraUserId, uint32(expireUint))
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get chat token", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success create chat token", map[string]string{
+		"chat_token": chatToken,
+	})
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *ChatHandler) CreateAppTokenMitra(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+
+	mitraRepo := repository.GetMitraRepository()
+
+	_, err := mitraRepo.FindMitraByID(mitraId)
+	if err != nil {
+		response := response.BuildFailedResponse("mitra not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	config := config.GetConfig()
+
+	expire := config.Agore.ExpiryTime
+
+	expireUint, err := strconv.ParseUint(expire, 10, 32)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse expire time to uint32", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	appToken, err := chatTokenBuilder.BuildChatAppToken(config.Agore.AppID, config.Agore.AppCertificate, uint32(expireUint))
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get app token", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success create app token", map[string]string{
+		"app_token": appToken,
+	})
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *ChatHandler) CreateChatTokenMitra(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+
+	mitraRepo := repository.GetMitraRepository()
+
+	_, err := mitraRepo.FindMitraByID(mitraId)
+	if err != nil {
+		response := response.BuildFailedResponse("mitra not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	agoraUserId := c.Query("agoraId")
+
+	if agoraUserId == "" {
+		response := response.BuildFailedResponse("agora user id is required", nil)
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	config := config.GetConfig()
+
+	expire := config.Agore.ExpiryTime
+
+	expireUint, err := strconv.ParseUint(expire, 10, 32)
+
 	if err != nil {
 		response := response.BuildFailedResponse("failed to parse expire time to uint32", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
@@ -354,5 +439,3 @@ func (handler *ChatHandler) GetChatHistoryBengkel(c *gin.Context) {
 	})
 	c.JSON(http.StatusOK, response)
 }
-
-
