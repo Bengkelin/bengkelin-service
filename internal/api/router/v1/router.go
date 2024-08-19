@@ -54,6 +54,8 @@ func Setup() *gin.Engine {
 		authMitraGroup.POST("google", authHandler.MitrasAuthGoogle)
 		authMitraGroup.POST("register", authHandler.MitrasAuthRegister)
 		authMitraGroup.POST("bank", middleware.AuthJWTMitra(), authHandler.MitrasNewBank)
+		authMitraGroup.PATCH("bank", middleware.AuthJWTMitra(), authHandler.MitrasUpdateBank)
+		authMitraGroup.PATCH("profile", middleware.AuthJWTMitra(), authHandler.MitrasUpdateProfile)
 	}
 	// UserGroup with "user" prefix
 	userGroup := v1Route.Group("users")
@@ -72,11 +74,14 @@ func Setup() *gin.Engine {
 	{
 		mitraGroup.POST("new", middleware.AuthJWTMitra(), mitraHandler.CreateBengkel)
 		mitraGroup.GET("profile", middleware.AuthJWTMitra(), mitraHandler.GetBengkel)
+		mitraGroup.PATCH("profile", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkel)
 		mitraGroup.GET("", middleware.AuthJWT(), mitraHandler.GetAllBengkelPaginate)
 		mitraGroup.POST("address", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelAddress)
 		mitraGroup.POST("service", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelService)
 		mitraGroup.POST("photo", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelPhoto)
 		mitraGroup.PATCH("service/opsi", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelStatusOpsiService)
+		mitraGroup.PATCH("montir", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelMontir)
+		mitraGroup.PATCH("operasional", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelOperasional)
 		mitraGroup.GET("search", middleware.AuthJWT(), mitraHandler.GetBengkelSearchV2Paginate)
 		mitraGroup.POST("testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.CreateBengkelTestimoni)
 		mitraGroup.GET("testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.GetDetailBengkelById)
