@@ -8,6 +8,21 @@ type BengkelRegisterRequest struct {
 	JamBuka      []string `json:"jam_buka"`
 }
 
+type BengkelUpdateRequest struct {
+	BengkelName  string `json:"bengkel_name"`
+	BengkelPhone string `json:"bengkel_phone"`
+	JumlahMontir uint   `json:"jumlah_montir"`
+}
+
+type BengkelMontirUpdateRequest struct {
+	JumlahMontir uint `json:"jumlah_montir"`
+}
+
+type BengkelOperasionalUpdateRequest struct {
+	Hari    []string `json:"hari"`
+	JamBuka []string `json:"jam_buka"`
+}
+
 type BengkelAddressRequest struct {
 	Latitude     float64 `json:"latitude" binding:"required"`
 	Longitude    float64 `json:"longitude" binding:"required"`
