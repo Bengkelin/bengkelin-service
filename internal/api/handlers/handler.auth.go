@@ -37,6 +37,8 @@ type AuthHandlerInterface interface {
 	MitrasAuthLogin(c *gin.Context)
 	MitrasAuthRegister(c *gin.Context)
 	MitrasNewBank(c *gin.Context)
+	MitrasUpdateBank(c *gin.Context)
+	MitrasUpdateProfile(c *gin.Context)
 }
 
 func GetAuthHandler() AuthHandlerInterface {
@@ -522,5 +524,69 @@ func (handler *AuthHandler) MitrasNewBank(c *gin.Context) {
 	}
 
 	response := response.BuildSuccessResponse("success update data bank mitra", nil)
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *AuthHandler) MitrasUpdateBank(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+	var bankRequest validator.MitraBankUpdateRequest
+
+	err := c.ShouldBind(&bankRequest)
+
+	if err != nil {
+		response := response.BuildFailedResponse("request invalid", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	mitraRepo := repository.GetMitraRepository()
+
+	mitraModel := &models.Mitra{}
+
+	smapping.FillStruct(mitraModel, smapping.MapFields(&bankRequest))
+
+	if err := mitraRepo.UpdateMitra(mitraId, mitraModel); err != nil {
+		response := response.BuildFailedResponse("failed to update data bank mitra", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success update data bank mitra", nil)
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *AuthHandler) MitrasUpdateProfile(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+	var mitraUpdateRequest validator.MitraUpdateProfileRequest
+
+	mitraRepo := repository.GetMitraRepository()
+
+	_, err := mitraRepo.GetMitraByID(mitraId)
+	if err != nil {
+		response := response.BuildFailedResponse("mitra not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	err = c.ShouldBind(&mitraUpdateRequest)
+	if err != nil {
+		response := response.BuildFailedResponse("request doesn't match with validator", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	mitraModel := &models.Mitra{}
+
+	smapping.FillStruct(mitraModel, smapping.MapFields(&mitraUpdateRequest))
+
+	err = mitraRepo.UpdateMitra(mitraId, mitraModel)
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to update mitra profile", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success update mitra profile", nil)
 	c.JSON(http.StatusOK, response)
 }

@@ -11,7 +11,7 @@ var (
 
 type BengkelOperasionalRepositoryInterface interface {
 	CreateBengkelOperasional(bengkelOperasional models.BengkelOperasional) (models.BengkelOperasional, error)
-	UpdateBengkelOperasionalById(bengkelOperasionalId string, bengkelOperasional *models.BengkelOperasional) error
+	UpdateBengkelOperasionalById(bengkelOperasionalId, bengkelOperasionalHari string, bengkelOperasional *models.BengkelOperasional) error
 	GetBengkelOperasionalById(bengkelId string) (*models.BengkelOperasional, error)
 	GetBengkelOperasionalByIdAndDay(bengkelId, day string) (*models.BengkelOperasional, error)
 }
@@ -36,8 +36,8 @@ func (repo *BengkelOperasionalRepository) CreateBengkelOperasional(bengkelOperas
 }
 
 // UpdateBengkelOperasionalById implements BengkelOperasionalRepositoryInterface.
-func (*BengkelOperasionalRepository) UpdateBengkelOperasionalById(bengkelOperasionalId string, bengkelOperasional *models.BengkelOperasional) error {
-	err := db.GetDB().Model(&models.BengkelOperasional{}).Where("bengkel_id = ?", bengkelOperasionalId).Updates(bengkelOperasional).Error
+func (*BengkelOperasionalRepository) UpdateBengkelOperasionalById(bengkelOperasionalId, bengkelOperasionalHari string, bengkelOperasional *models.BengkelOperasional) error {
+	err := db.GetDB().Model(&models.BengkelOperasional{}).Where("bengkel_id = ? and hari = ?", bengkelOperasionalId, bengkelOperasionalHari).Updates(bengkelOperasional).Error
 
 	if err != nil {
 		return err
