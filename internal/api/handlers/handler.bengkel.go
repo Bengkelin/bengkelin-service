@@ -737,14 +737,16 @@ func (handler *BengkelHandler) CreateBengkelPesananService(c *gin.Context) {
 
 	bengkelPesananServiceModel := []models.PesananService{}
 
-	for i, v := range requestDataBengkelPesananService.ServiceName {
+	totalPrice := 0.0
+
+	for i, v := range requestDataBengkelPesananService.Title {
 		bengkelPesananServiceModel = append(bengkelPesananServiceModel, models.PesananService{
-			PesananID:   pesananModel.ID,
-			ServiceName: v,
-			Note:        requestDataBengkelPesananService.Note[i],
-			Price:       requestDataBengkelPesananService.Price[i],
+			PesananID: pesananModel.ID,
+			Title:     v,
+			Detail:    requestDataBengkelPesananService.Detail[i],
+			Price:     requestDataBengkelPesananService.Price[i],
 		})
-		requestDataBengkelPesananService.TotalPrice += requestDataBengkelPesananService.Price[i]
+		totalPrice += requestDataBengkelPesananService.Price[i]
 	}
 
 	bengkelPesananServiceRepo := repository.GetPesananServiceRepository()
@@ -758,7 +760,7 @@ func (handler *BengkelHandler) CreateBengkelPesananService(c *gin.Context) {
 		}
 	}
 
-	pesananModel.TotalPrice = requestDataBengkelPesananService.TotalPrice
+	pesananModel.TotalPrice = totalPrice
 
 	err = bengkelPesananRepo.UpdatePesananById(pesananModel.ID, pesananModel)
 	if err != nil {
