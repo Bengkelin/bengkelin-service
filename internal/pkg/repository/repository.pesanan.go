@@ -60,7 +60,7 @@ func (*PesananRepository) GetPesananById(pesananId string) (*models.Pesanan, err
 	var pesanan models.Pesanan
 	where := models.Pesanan{}
 	where.ID = pesananId
-	err := db.GetDB().First(where, &pesanan, []string{"PesananService", "User", "Bengkel", "Bengkel.Addresses", "Vehicle"}).Error
+	_, err := First(where, &pesanan, []string{"PesananService", "User", "Bengkel", "Bengkel.Addresses", "Vehicle"})
 	if err != nil {
 		return nil, err
 	}
