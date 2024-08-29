@@ -12,7 +12,7 @@ var (
 type VehicleRepositoryInterface interface {
 	CreateVehicle(vehicle models.Vehicle) (models.Vehicle, error)
 	UpdateVehicleById(vehicleId uint, userId string, vehicle *models.Vehicle) error
-	GetVehicleById(userId string) (*models.Vehicle, error)
+	GetVehicleById(userId string, vehicleId uint) (*models.Vehicle, error)
 	DeleteVehicleById(vehicleId uint, userId string) error
 }
 
@@ -46,10 +46,11 @@ func (*VehicleRepository) UpdateVehicleById(vehicleId uint, userId string, vehic
 }
 
 // GetVehicleById implements VehicleRepositoryInterface.
-func (*VehicleRepository) GetVehicleById(userId string) (*models.Vehicle, error) {
+func (*VehicleRepository) GetVehicleById(userId string, vehicleId uint) (*models.Vehicle, error) {
 	var vehicle models.Vehicle
 	where := models.Vehicle{}
 	where.UserID = userId
+	where.ID = vehicleId
 	_, err := First(where, &vehicle, []string{"Photos"})
 	if err != nil {
 		return nil, err
