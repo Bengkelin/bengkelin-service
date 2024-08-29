@@ -726,6 +726,9 @@ func (handler *BengkelHandler) CreateBengkelPesananService(c *gin.Context) {
 		VehicleID:     user.Vehicles[0].ID,
 		IsHomeService: &isHomeService,
 		AdminFee:      adminFeeData.AdminFee,
+		ConfirmedAt:   nil,
+		FinishedAt:    nil,
+		PaidAt:        nil,
 	}
 
 	_, err = bengkelPesananRepo.CreatePesanan(*pesananModel)
