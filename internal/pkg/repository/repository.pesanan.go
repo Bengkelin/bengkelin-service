@@ -60,7 +60,7 @@ func (*PesananRepository) GetPesananById(pesananId string) (*models.Pesanan, err
 	var pesanan models.Pesanan
 	where := models.Pesanan{}
 	where.ID = pesananId
-	err := db.GetDB().First(where, &pesanan, nil).Error
+	err := db.GetDB().First(where, &pesanan, []string{"PesananService", "User", "Bengkel", "Bengkel.Addresses", "Vehicle"}).Error
 	if err != nil {
 		return nil, err
 	}
@@ -84,3 +84,5 @@ func (*PesananRepository) GetDetailPesananById(pesananId, userId string) (*model
 	}
 	return &pesanan, nil
 }
+
+//
