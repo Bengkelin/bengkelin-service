@@ -12,7 +12,7 @@ var (
 type AddressRepositoryInterface interface {
 	CreateAddress(address models.AddressUser) (models.AddressUser, error)
 	UpdateAddressById(addressId uint, userId string, address *models.AddressUser) error
-	GetAddressById(userId string) (*models.AddressUser, error)
+	GetAddressById(userId string, addressId uint) (*models.AddressUser, error)
 	DeleteAddressById(addressId uint, userId string) error
 }
 
@@ -46,10 +46,11 @@ func (*AddressRepository) UpdateAddressById(addressId uint, userId string, addre
 }
 
 // GetAddressById implements AddressRepositoryInterface.
-func (*AddressRepository) GetAddressById(userId string) (*models.AddressUser, error) {
+func (*AddressRepository) GetAddressById(userId string, addressId uint) (*models.AddressUser, error) {
 	var address models.AddressUser
 	where := models.AddressUser{}
 	where.UserID = userId
+	where.ID = addressId
 	_, err := First(where, &address, nil)
 	if err != nil {
 		return nil, err
