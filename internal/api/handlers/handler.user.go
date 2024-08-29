@@ -35,7 +35,9 @@ type UserHandlerInterface interface {
 	GetProfile(c *gin.Context)
 	UpdateProfile(c *gin.Context)
 	UpdateAvatarUser(c *gin.Context)
+	GetDetailAddressUser(c *gin.Context)
 	DeleteAddressUser(c *gin.Context)
+	GetDetailVehicleUser(c *gin.Context)
 	DeleteVehicleUser(c *gin.Context)
 }
 
@@ -83,7 +85,7 @@ func (handler *UserHandler) UpdateProfile(c *gin.Context) {
 	} else {
 		addressRepo := repository.GetAddressRepository()
 
-		addressUser, err := addressRepo.GetAddressById(userId)
+		addressUser, err := addressRepo.GetAddressById(userId, user.Addresses[0].ID)
 
 		if err != nil {
 			response := response.BuildFailedResponse("address user not found", err.Error())
@@ -195,7 +197,7 @@ func (handler *UserHandler) DeleteAddressUser(c *gin.Context) {
 
 	addressRepo := repository.GetAddressRepository()
 
-	_, err = addressRepo.GetAddressById(userId)
+	_, err = addressRepo.GetAddressById(userId, uint(addressIdUint))
 	if err != nil {
 		response := response.BuildFailedResponse("failed to get address", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
@@ -210,6 +212,33 @@ func (handler *UserHandler) DeleteAddressUser(c *gin.Context) {
 	}
 
 	response := response.BuildSuccessResponse("success delete address", nil)
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *UserHandler) GetDetailAddressUser(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+
+	addressId := c.Param("addressId")
+
+	addressIdUint, err := strconv.Atoi(addressId)
+
+	if err != nil {
+		response := response.BuildFailedResponse("address id must be a number", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	addressRepo := repository.GetAddressRepository()
+
+	address, err := addressRepo.GetAddressById(userId, uint(addressIdUint))
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get address", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get address", address)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -233,7 +262,7 @@ func (handler *UserHandler) DeleteVehicleUser(c *gin.Context) {
 		return
 	}
 
-	_, err = vehicleRepo.GetVehicleById(userId)
+	_, err = vehicleRepo.GetVehicleById(userId, uint(vehicleIdUint))
 	if err != nil {
 		response := response.BuildFailedResponse("failed to get vehicle", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
@@ -248,5 +277,30 @@ func (handler *UserHandler) DeleteVehicleUser(c *gin.Context) {
 	}
 
 	response := response.BuildSuccessResponse("success delete vehicle", nil)
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *UserHandler) GetDetailVehicleUser(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+	vehicleId := c.Param("vehicleId")
+
+	vehicleIdUint, err := strconv.Atoi(vehicleId)
+	if err != nil {
+		response := response.BuildFailedResponse("vehicle id must be a number", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	vehicleRepo := repository.GetVehicleRepository()
+
+	vehicle, err := vehicleRepo.GetVehicleById(userId, uint(vehicleIdUint))
+
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get vehicle", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get vehicle", vehicle)
 	c.JSON(http.StatusOK, response)
 }

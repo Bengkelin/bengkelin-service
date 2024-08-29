@@ -19,6 +19,9 @@ type Pesanan struct {
 	Bengkel             Bengkel          `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"bengkel"`
 	Vehicle             Vehicle          `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"vehicle"`
 	PesananService      []PesananService `gorm:"foreignKey:PesananID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"pesanan_service"`
+	ConfirmedAt         time.Time        `json:"confirmed_at"`
+	PaidAt              time.Time        `json:"paid_at"`
+	FinishedAt          time.Time        `json:"finished_at"`
 	CreatedAt           time.Time        `json:"created_at"`
 	UpdatedAt           time.Time        `json:"updated_at"`
 }

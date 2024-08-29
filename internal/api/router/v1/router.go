@@ -64,7 +64,9 @@ func Setup() *gin.Engine {
 		userGroup.GET("profile", middleware.AuthJWT(), userHandler.GetProfile)
 		userGroup.PATCH("profile", middleware.AuthJWT(), userHandler.UpdateProfile)
 		userGroup.PATCH("avatar", middleware.AuthJWT(), userHandler.UpdateAvatarUser)
+		userGroup.GET("address/:addressId", middleware.AuthJWT(), userHandler.GetDetailAddressUser)
 		userGroup.DELETE("address/:addressId", middleware.AuthJWT(), userHandler.DeleteAddressUser)
+		userGroup.GET("vehicle/:vehicleId", middleware.AuthJWT(), userHandler.GetDetailVehicleUser)
 		userGroup.DELETE("vehicle/:vehicleId", middleware.AuthJWT(), userHandler.DeleteVehicleUser)
 	}
 
@@ -90,7 +92,7 @@ func Setup() *gin.Engine {
 		mitraGroup.GET("order/service/:pesananId", middleware.AuthJWT(), mitraHandler.GetBengkelPesananServiceById)
 		mitraGroup.GET("order/schedule", middleware.AuthJWT(), mitraHandler.GetBengkelOperasionalByIdAndDay)
 		mitraGroup.PATCH("order/service/:pesananId", middleware.AuthJWT(), mitraHandler.UpdateBengkelPesananServiceById)
-		mitraGroup.GET("order/user/:userId", middleware.AuthJWT(), mitraHandler.GetDetailUserById)
+		mitraGroup.GET("order/user/:userId", middleware.AuthJWTMitra(), mitraHandler.GetDetailUserById)
 	}
 
 	// ChatGroup with "chat" prefix

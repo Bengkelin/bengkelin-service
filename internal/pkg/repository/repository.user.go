@@ -58,7 +58,7 @@ func (*UserRepository) GetDetailUser(userId string) (*models.User, error) {
 	var user models.User
 	where := models.User{}
 	where.ID = userId
-	_, err := First(where, &user, nil)
+	_, err := First(where, &user, []string{"Addresses"})
 	if err != nil {
 		return nil, err
 	}
