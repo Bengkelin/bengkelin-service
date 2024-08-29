@@ -1001,7 +1001,7 @@ func (handler *BengkelHandler) GetDetailUserById(c *gin.Context) {
 
 	userRepo := repository.GetUserRepository()
 
-	user, err := userRepo.GetDetailUser(userId)
+	user, err := userRepo.FindUserByID(userId)
 	if err != nil {
 		response := response.BuildFailedResponse("failed to get user", err.Error())
 		c.AbortWithStatusJSON(http.StatusNotFound, response)
