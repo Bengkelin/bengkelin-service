@@ -55,6 +55,7 @@ type BengkelHandlerInterface interface {
 	UpdateAvatarBengkel(c *gin.Context)
 	GetBengkelOperasionalByIdAndDay(c *gin.Context)
 	UpdateBengkelPesananServiceById(c *gin.Context)
+	GetDetailUserById(c *gin.Context)
 }
 
 // CreateBengkel function
@@ -766,7 +767,9 @@ func (handler *BengkelHandler) CreateBengkelPesananService(c *gin.Context) {
 		return
 	}
 
-	response := response.BuildSuccessResponse("success create bengkel pesanan service", nil)
+	response := response.BuildSuccessResponse("success create bengkel pesanan service", map[string]string{
+		"pesanan_id": pesananModel.ID,
+	})
 	c.JSON(http.StatusOK, response)
 }
 
@@ -978,5 +981,33 @@ func (handler *BengkelHandler) UpdateBengkelPesananServiceById(c *gin.Context) {
 	}
 
 	response := response.BuildSuccessResponse("success update bengkel pesanan service", nil)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetDetailUserById function
+func (handler *BengkelHandler) GetDetailUserById(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+
+	userId := c.Param("userId")
+
+	mitraRepo := repository.GetMitraRepository()
+
+	_, err := mitraRepo.FindMitraByID(mitraId)
+	if err != nil {
+		response := response.BuildFailedResponse("mitras not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	userRepo := repository.GetUserRepository()
+
+	user, err := userRepo.FindUserByID(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get user", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get user", user)
 	c.JSON(http.StatusOK, response)
 }
