@@ -52,6 +52,7 @@ type BengkelHandlerInterface interface {
 	CreateBengkelPesananService(c *gin.Context)
 	GetAllBengkelPesananServicePaginate(c *gin.Context)
 	GetBengkelPesananServiceById(c *gin.Context)
+	GetBengkelPesananServiceByIdMitra(c *gin.Context)
 	UpdateAvatarBengkel(c *gin.Context)
 	GetBengkelOperasionalByIdAndDay(c *gin.Context)
 	UpdateBengkelPesananServiceById(c *gin.Context)
@@ -1014,5 +1015,39 @@ func (handler *BengkelHandler) GetDetailUserById(c *gin.Context) {
 	}
 
 	response := response.BuildSuccessResponse("success get user", user)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetBenkelPesananServiceByIdMitra function
+func (handler *BengkelHandler) GetBengkelPesananServiceByIdMitra(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+
+	pesananId := c.Param("pesananId")
+
+	if pesananId == "" {
+		response := response.BuildFailedResponse("failed to get pesanan", "pesananId params is empty")
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	mitraRepo := repository.GetMitraRepository()
+
+	_, err := mitraRepo.FindMitraByID(mitraId)
+	if err != nil {
+		response := response.BuildFailedResponse("mitras not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	bengkelPesananRepo := repository.GetPesananRepository()
+
+	pesanan, err := bengkelPesananRepo.GetPesananById(pesananId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get pesanan", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get pesanan service", pesanan)
 	c.JSON(http.StatusOK, response)
 }
