@@ -328,7 +328,7 @@ func (handler *AuthHandler) UsersNewVehicle(c *gin.Context) {
 		}
 	}
 
-	dataVehicle, err := vehicleRepo.GetVehicleById(userId)
+	dataVehicle, err := vehicleRepo.GetVehicleById(userId, newVehicle.ID)
 	if err != nil {
 		response := response.BuildFailedResponse("failed to get vehicle", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
