@@ -96,6 +96,7 @@ func Setup() *gin.Engine {
 		mitraGroup.GET("order/schedule", middleware.AuthJWT(), mitraHandler.GetBengkelOperasionalByIdAndDay)
 		mitraGroup.PATCH("order/service/:pesananId", middleware.AuthJWT(), mitraHandler.UpdateBengkelPesananServiceById)
 		mitraGroup.GET("order/user/:userId", middleware.AuthJWTMitra(), mitraHandler.GetDetailUserById)
+		mitraGroup.GET("nearest", middleware.AuthJWT(), mitraHandler.GetNearestBengkelPaginate)
 	}
 
 	// ChatGroup with "chat" prefix
