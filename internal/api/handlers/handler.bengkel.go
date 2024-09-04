@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
@@ -50,13 +52,15 @@ type BengkelHandlerInterface interface {
 	CreateBengkelTestimoni(c *gin.Context)
 	GetDetailBengkelById(c *gin.Context)
 	CreateBengkelPesananService(c *gin.Context)
-	GetAllBengkelPesananServicePaginate(c *gin.Context)
 	GetBengkelPesananServiceById(c *gin.Context)
 	GetBengkelPesananServiceByIdMitra(c *gin.Context)
 	UpdateAvatarBengkel(c *gin.Context)
 	GetBengkelOperasionalByIdAndDay(c *gin.Context)
 	UpdateBengkelPesananServiceById(c *gin.Context)
 	GetDetailUserById(c *gin.Context)
+	GetAllBengkelPesananServicePaginate(c *gin.Context)
+	GetAllPesananUserPaginate(c *gin.Context)
+	GetNearestBengkelPaginate(c *gin.Context)
 }
 
 // CreateBengkel function
@@ -1049,5 +1053,151 @@ func (handler *BengkelHandler) GetBengkelPesananServiceByIdMitra(c *gin.Context)
 	}
 
 	response := response.BuildSuccessResponse("success get pesanan service", pesanan)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetAllBengkelPesananServicePaginate function
+func (handler *BengkelHandler) GetAllBengkelPesananServicePaginate(c *gin.Context) {
+	page := c.Query("page")
+	limit := c.Query("limit")
+	mitraId := c.MustGet("id").(string)
+
+	mitraRepo := repository.GetMitraRepository()
+
+	pageInt, err := strconv.Atoi(page)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to convert page to int", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	limitInt, err := strconv.Atoi(limit)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to convert limit to int", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	mitra, err := mitraRepo.FindMitraByID(mitraId)
+	if err != nil {
+		response := response.BuildFailedResponse("mitras not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	bengkelPesananRepo := repository.GetPesananRepository()
+
+	pesanans, count, err := bengkelPesananRepo.GetAllPesananMitraPaginate(mitra.Bengkel[0].ID, pageInt, limitInt)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get pesanan", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get pesanan service", map[string]any{
+		"pesanans": pesanans,
+		"count":    count,
+	})
+	c.JSON(http.StatusOK, response)
+}
+
+// GetAllPesananUserPaginate function
+func (handler *BengkelHandler) GetAllPesananUserPaginate(c *gin.Context) {
+	page := c.Query("page")
+	limit := c.Query("limit")
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	pageInt, _ := strconv.Atoi(page)
+	limitInt, _ := strconv.Atoi(limit)
+
+	pesananRepo := repository.GetPesananRepository()
+
+	pesanans, count, err := pesananRepo.GetAllPesananUserPaginate(userId, pageInt, limitInt)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get all pesanan", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success get all pesanan", map[string]any{
+		"pesanans": pesanans,
+		"count":    count,
+	})
+	c.JSON(http.StatusOK, response)
+}
+
+// GetNearestBengkelPaginate function
+func (handler *BengkelHandler) GetNearestBengkelPaginate(c *gin.Context) {
+	page := c.Query("page")
+	limit := c.Query("limit")
+	latitude := c.Query("latitude")
+	longitude := c.Query("longitude")
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	floatLatitude, err := strconv.ParseFloat(latitude, 64)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse float", err.Error())
+		c.AbortWithStatusJSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	floatLongitude, err := strconv.ParseFloat(longitude, 64)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse float", err.Error())
+		c.AbortWithStatusJSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	var listBengkelDto []dto.BengkelDto
+
+	pageInt, _ := strconv.Atoi(page)
+	limitInt, _ := strconv.Atoi(limit)
+
+	bengkelRepo := repository.GetBengkelRepository()
+
+	bengkels, count, err := bengkelRepo.GetAllBengkelPaginate(pageInt, limitInt)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get nearest bengkel", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	for _, v := range bengkels {
+		distance := helpers.CalculateDistanceHaversineAlg(floatLatitude, floatLongitude, v.Addresses[0].Latitude, v.Addresses[0].Longitude)
+		listBengkelDto = append(listBengkelDto, dto.BengkelDto{
+			ID:           v.ID,
+			BengkelName:  v.BengkelName,
+			BengkelPhoto: v.Photos[0].PhotoURL,
+			Address:      v.Addresses[0],
+			Operasionals: v.Operasionals,
+			Distance:     distance,
+		})
+	}
+	sort.Slice(listBengkelDto, func(i, j int) bool {
+		return listBengkelDto[i].Distance < listBengkelDto[j].Distance
+	})
+
+	response := response.BuildSuccessResponse("success get nearest bengkel", map[string]any{
+		"bengkels": listBengkelDto,
+		"count":    count,
+	})
 	c.JSON(http.StatusOK, response)
 }
