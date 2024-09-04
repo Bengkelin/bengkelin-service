@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
@@ -58,6 +60,7 @@ type BengkelHandlerInterface interface {
 	GetDetailUserById(c *gin.Context)
 	GetAllBengkelPesananServicePaginate(c *gin.Context)
 	GetAllPesananUserPaginate(c *gin.Context)
+	GetNearestBengkelPaginate(c *gin.Context)
 }
 
 // CreateBengkel function
@@ -1127,6 +1130,73 @@ func (handler *BengkelHandler) GetAllPesananUserPaginate(c *gin.Context) {
 
 	response := response.BuildSuccessResponse("success get all pesanan", map[string]any{
 		"pesanans": pesanans,
+		"count":    count,
+	})
+	c.JSON(http.StatusOK, response)
+}
+
+// GetNearestBengkelPaginate function
+func (handler *BengkelHandler) GetNearestBengkelPaginate(c *gin.Context) {
+	page := c.Query("page")
+	limit := c.Query("limit")
+	latitude := c.Query("latitude")
+	longitude := c.Query("longitude")
+	userId := c.MustGet("id").(string)
+
+	userRepo := repository.GetUserRepository()
+
+	_, err := userRepo.GetDetailUser(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("users not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	floatLatitude, err := strconv.ParseFloat(latitude, 64)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse float", err.Error())
+		c.AbortWithStatusJSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	floatLongitude, err := strconv.ParseFloat(longitude, 64)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to parse float", err.Error())
+		c.AbortWithStatusJSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	var listBengkelDto []dto.BengkelDto
+
+	pageInt, _ := strconv.Atoi(page)
+	limitInt, _ := strconv.Atoi(limit)
+
+	bengkelRepo := repository.GetBengkelRepository()
+
+	bengkels, count, err := bengkelRepo.GetAllBengkelPaginate(pageInt, limitInt)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get nearest bengkel", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	for _, v := range bengkels {
+		distance := helpers.CalculateDistanceHaversineAlg(floatLatitude, floatLongitude, v.Addresses[0].Latitude, v.Addresses[0].Longitude)
+		listBengkelDto = append(listBengkelDto, dto.BengkelDto{
+			ID:           v.ID,
+			BengkelName:  v.BengkelName,
+			BengkelPhoto: v.Photos[0].PhotoURL,
+			Address:      v.Addresses[0],
+			Operasionals: v.Operasionals,
+			Distance:     distance,
+		})
+	}
+	sort.Slice(listBengkelDto, func(i, j int) bool {
+		return listBengkelDto[i].Distance < listBengkelDto[j].Distance
+	})
+
+	response := response.BuildSuccessResponse("success get nearest bengkel", map[string]any{
+		"bengkels": listBengkelDto,
 		"count":    count,
 	})
 	c.JSON(http.StatusOK, response)
