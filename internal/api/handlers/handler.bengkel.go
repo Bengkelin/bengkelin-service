@@ -1181,18 +1181,38 @@ func (handler *BengkelHandler) GetNearestBengkelPaginate(c *gin.Context) {
 	}
 
 	for _, v := range bengkels {
-		distance := helpers.CalculateDistanceHaversineAlg(floatLatitude, floatLongitude, v.Addresses[0].Latitude, v.Addresses[0].Longitude)
+		distance := 0.0
+		if len(v.Addresses) > 0 {
+			distance = helpers.CalculateDistanceHaversineAlg(floatLatitude, floatLongitude, v.Addresses[0].Latitude, v.Addresses[0].Longitude)
+		}
+
+		var bengkelPhoto *string
+		var address *models.BengkelAddress
+		var operasionals *[]models.BengkelOperasional
+
+		if len(v.Photos) > 0 {
+			bengkelPhoto = &v.Photos[0].PhotoURL
+		}
+
+		if len(v.Addresses) > 0 {
+			address = &v.Addresses[0]
+		}
+
+		if len(v.Operasionals) > 0 {
+			operasionals = &v.Operasionals
+		}
+
 		listBengkelDto = append(listBengkelDto, dto.BengkelDto{
 			ID:           v.ID,
 			BengkelName:  v.BengkelName,
-			BengkelPhoto: v.Photos[0].PhotoURL,
-			Address:      v.Addresses[0],
-			Operasionals: v.Operasionals,
-			Distance:     distance,
+			BengkelPhoto: bengkelPhoto,
+			Address:      address,
+			Operasionals: operasionals,
+			Distance:     &distance,
 		})
 	}
 	sort.Slice(listBengkelDto, func(i, j int) bool {
-		return listBengkelDto[i].Distance < listBengkelDto[j].Distance
+		return *listBengkelDto[i].Distance < *listBengkelDto[j].Distance
 	})
 
 	response := response.BuildSuccessResponse("success get nearest bengkel", map[string]any{
