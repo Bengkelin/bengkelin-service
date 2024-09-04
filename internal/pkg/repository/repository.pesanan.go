@@ -14,7 +14,8 @@ type PesananRepositoryInterface interface {
 	UpdatePesananById(pesananId string, pesanan *models.Pesanan) error
 	GetPesananById(pesananId string) (*models.Pesanan, error)
 	GetDetailPesananById(pesananId, userId string) (*models.Pesanan, error)
-	GetAllPesanan() ([]models.Pesanan, error)
+	GetAllPesananUserPaginate(userId string, page, limit int) ([]models.Pesanan, int, error)
+	GetAllPesananMitraPaginate(bengkelId string, page, limit int) ([]models.Pesanan, int, error)
 }
 
 type PesananRepository struct{}
@@ -45,14 +46,43 @@ func (*PesananRepository) UpdatePesananById(pesananId string, pesanan *models.Pe
 	return nil
 }
 
-// GetAllPesanan implements PesananRepositoryInterface.
-func (*PesananRepository) GetAllPesanan() ([]models.Pesanan, error) {
-	var pesanan []models.Pesanan
-	err := db.GetDB().Find(&pesanan).Error
+// GetAllPesananUserPaginate implements PesananRepositoryInterface.
+func (*PesananRepository) GetAllPesananUserPaginate(userId string, page, limit int) ([]models.Pesanan, int, error) {
+	var pesanans []models.Pesanan
+	var count int64
+
+	err := db.GetDB().Model(&models.Pesanan{}).Where("user_id = ?", userId).Count(&count).Error
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return pesanan, nil
+
+	err = db.GetDB().Preload("PesananService").Preload("User").Preload("Bengkel").Preload("Bengkel.Addresses").Preload("Vehicle").Where("user_id = ?", userId).Offset((page - 1) * limit).Limit(limit).Find(&pesanans).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return pesanans, int(count), nil
+}
+
+// GetAllPesananMitraPaginate implements PesananRepositoryInterface.
+func (*PesananRepository) GetAllPesananMitraPaginate(bengkelId string, page, limit int) ([]models.Pesanan, int, error) {
+	var pesanans []models.Pesanan
+	var count int64
+
+	err := db.GetDB().Model(&models.Pesanan{}).Where("bengkel_id = ?", bengkelId).Count(&count).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	err = db.GetDB().Preload("PesananService").Preload("User").Preload("Bengkel").Preload("Bengkel.Addresses").Preload("Vehicle").Where("bengkel_id = ?", bengkelId).Offset((page - 1) * limit).Limit(limit).Find(&pesanans).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return pesanans, int(count), nil
 }
 
 // GetPesananById implements PesananRepositoryInterface.
