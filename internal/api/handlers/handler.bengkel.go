@@ -1173,7 +1173,7 @@ func (handler *BengkelHandler) GetNearestBengkelPaginate(c *gin.Context) {
 
 	bengkelRepo := repository.GetBengkelRepository()
 
-	bengkels, count, err := bengkelRepo.GetAllBengkelPaginate(pageInt, limitInt)
+	bengkels, _, err := bengkelRepo.GetAllBengkelPaginate(pageInt, limitInt)
 	if err != nil {
 		response := response.BuildFailedResponse("failed to get nearest bengkel", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
@@ -1211,7 +1211,7 @@ func (handler *BengkelHandler) GetNearestBengkelPaginate(c *gin.Context) {
 
 	response := response.BuildSuccessResponse("success get nearest bengkel", map[string]any{
 		"bengkels": listBengkelDto,
-		"count":    count,
+		"count":    len(listBengkelDto),
 	})
 	c.JSON(http.StatusOK, response)
 }
