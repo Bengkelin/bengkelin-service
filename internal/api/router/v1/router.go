@@ -95,6 +95,7 @@ func Setup() *gin.Engine {
 		mitraGroup.GET("order/mitra/service/:pesananId", middleware.AuthJWTMitra(), mitraHandler.GetBengkelPesananServiceByIdMitra)
 		mitraGroup.GET("order/schedule", middleware.AuthJWT(), mitraHandler.GetBengkelOperasionalByIdAndDay)
 		mitraGroup.PATCH("order/service/:pesananId", middleware.AuthJWT(), mitraHandler.UpdateBengkelPesananServiceById)
+		mitraGroup.PATCH("order/status/:pesananId", middleware.AuthJWTMitra(), mitraHandler.ConfirmPesananService)
 		mitraGroup.GET("order/user/:userId", middleware.AuthJWTMitra(), mitraHandler.GetDetailUserById)
 		mitraGroup.GET("nearest", middleware.AuthJWT(), mitraHandler.GetNearestBengkelPaginate)
 	}
