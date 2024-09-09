@@ -1262,13 +1262,19 @@ func (handler *BengkelHandler) ConfirmPesananService(c *gin.Context) {
 		return
 	}
 
-	var confirmedAt = time.Now()
-
 	if pesananStatusRequest.Status == 1 {
+		var confirmedAt = time.Now()
 		err = bengkelPesananRepo.UpdatePesananById(pesanan.ID,
 			&models.Pesanan{
 				Status:      pesananStatusRequest.Status,
 				ConfirmedAt: &confirmedAt,
+			})
+	} else if pesananStatusRequest.Status == 2 {
+		var finishedAt = time.Now()
+		err = bengkelPesananRepo.UpdatePesananById(pesanan.ID,
+			&models.Pesanan{
+				Status:     pesananStatusRequest.Status,
+				FinishedAt: &finishedAt,
 			})
 	} else {
 		err = bengkelPesananRepo.UpdatePesananById(pesanan.ID,
