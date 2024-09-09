@@ -5,3 +5,7 @@ type PesananUpdateRequest struct {
 	HomeServiceSchedule string `json:"home_service_schedule"`
 	PaymentMethod       string `json:"payment_method"`
 }
+
+type PesananStatusUpdateRequest struct {
+	Status uint `json:"status"`
+}
