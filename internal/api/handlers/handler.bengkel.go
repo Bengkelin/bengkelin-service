@@ -61,7 +61,7 @@ type BengkelHandlerInterface interface {
 	GetAllBengkelPesananServicePaginate(c *gin.Context)
 	GetAllPesananUserPaginate(c *gin.Context)
 	GetNearestBengkelPaginate(c *gin.Context)
-	ConfirmPesananService(c *gin.Context)
+	UpdateStatusPesananService(c *gin.Context)
 }
 
 // CreateBengkel function
@@ -1218,7 +1218,7 @@ func (handler *BengkelHandler) GetNearestBengkelPaginate(c *gin.Context) {
 }
 
 // ConfirmPesananService function
-func (handler *BengkelHandler) ConfirmPesananService(c *gin.Context) {
+func (handler *BengkelHandler) UpdateStatusPesananService(c *gin.Context) {
 	mitraId := c.MustGet("id").(string)
 
 	pesananId := c.Param("pesananId")
@@ -1288,6 +1288,6 @@ func (handler *BengkelHandler) ConfirmPesananService(c *gin.Context) {
 		return
 	}
 
-	response := response.BuildSuccessResponse("success confirm pesanan", nil)
+	response := response.BuildSuccessResponse("success confirm pesanan", pesanan)
 	c.JSON(http.StatusOK, response)
 }
