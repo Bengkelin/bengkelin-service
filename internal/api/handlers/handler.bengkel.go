@@ -1295,6 +1295,6 @@ func (handler *BengkelHandler) UpdateStatusPesananService(c *gin.Context) {
 		return
 	}
 
-	response := response.BuildSuccessResponse("success confirm pesanan", pesanan)
+	response := response.BuildSuccessResponse("success update status pesanan", pesanan)
 	c.JSON(http.StatusOK, response)
 }
