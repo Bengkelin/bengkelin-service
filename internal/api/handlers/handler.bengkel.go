@@ -61,6 +61,7 @@ type BengkelHandlerInterface interface {
 	GetAllBengkelPesananServicePaginate(c *gin.Context)
 	GetAllPesananUserPaginate(c *gin.Context)
 	GetNearestBengkelPaginate(c *gin.Context)
+	ConfirmPesananService(c *gin.Context)
 }
 
 // CreateBengkel function
@@ -1213,5 +1214,74 @@ func (handler *BengkelHandler) GetNearestBengkelPaginate(c *gin.Context) {
 		"bengkels": listBengkelDto,
 		"count":    len(listBengkelDto),
 	})
+	c.JSON(http.StatusOK, response)
+}
+
+// ConfirmPesananService function
+func (handler *BengkelHandler) ConfirmPesananService(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+
+	pesananId := c.Param("pesananId")
+
+	if pesananId == "" {
+		response := response.BuildFailedResponse("failed to get pesanan", "pesananId params is empty")
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	mitraRepo := repository.GetMitraRepository()
+
+	_, err := mitraRepo.FindMitraByID(mitraId)
+	if err != nil {
+		response := response.BuildFailedResponse("mitras not found", err.Error())
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	var pesananStatusRequest validator.PesananStatusUpdateRequest
+
+	err = c.ShouldBindJSON(&pesananStatusRequest)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to bind json", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if pesananStatusRequest.Status > 3 {
+		response := response.BuildFailedResponse("failed to confirm pesanan", "status not valid")
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	bengkelPesananRepo := repository.GetPesananRepository()
+
+	pesanan, err := bengkelPesananRepo.GetPesananById(pesananId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get pesanan", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
+		return
+	}
+
+	var confirmedAt = time.Now()
+
+	if pesananStatusRequest.Status == 1 {
+		err = bengkelPesananRepo.UpdatePesananById(pesanan.ID,
+			&models.Pesanan{
+				Status:      pesananStatusRequest.Status,
+				ConfirmedAt: &confirmedAt,
+			})
+	} else {
+		err = bengkelPesananRepo.UpdatePesananById(pesanan.ID,
+			&models.Pesanan{
+				Status: pesananStatusRequest.Status,
+			})
+	}
+	if err != nil {
+		response := response.BuildFailedResponse("failed to confirm pesanan", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	response := response.BuildSuccessResponse("success confirm pesanan", nil)
 	c.JSON(http.StatusOK, response)
 }
