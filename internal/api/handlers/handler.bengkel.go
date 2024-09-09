@@ -1255,7 +1255,7 @@ func (handler *BengkelHandler) UpdateStatusPesananService(c *gin.Context) {
 
 	bengkelPesananRepo := repository.GetPesananRepository()
 
-	pesanan, err := bengkelPesananRepo.GetPesananById(pesananId)
+	_, err = bengkelPesananRepo.GetPesananById(pesananId)
 	if err != nil {
 		response := response.BuildFailedResponse("failed to get pesanan", err.Error())
 		c.AbortWithStatusJSON(http.StatusNotFound, response)
@@ -1264,20 +1264,20 @@ func (handler *BengkelHandler) UpdateStatusPesananService(c *gin.Context) {
 
 	if pesananStatusRequest.Status == 1 {
 		var confirmedAt = time.Now()
-		err = bengkelPesananRepo.UpdatePesananById(pesanan.ID,
+		err = bengkelPesananRepo.UpdatePesananById(pesananId,
 			&models.Pesanan{
 				Status:      pesananStatusRequest.Status,
 				ConfirmedAt: &confirmedAt,
 			})
 	} else if pesananStatusRequest.Status == 2 {
 		var finishedAt = time.Now()
-		err = bengkelPesananRepo.UpdatePesananById(pesanan.ID,
+		err = bengkelPesananRepo.UpdatePesananById(pesananId,
 			&models.Pesanan{
 				Status:     pesananStatusRequest.Status,
 				FinishedAt: &finishedAt,
 			})
 	} else {
-		err = bengkelPesananRepo.UpdatePesananById(pesanan.ID,
+		err = bengkelPesananRepo.UpdatePesananById(pesananId,
 			&models.Pesanan{
 				Status: pesananStatusRequest.Status,
 			})
@@ -1285,6 +1285,13 @@ func (handler *BengkelHandler) UpdateStatusPesananService(c *gin.Context) {
 	if err != nil {
 		response := response.BuildFailedResponse("failed to confirm pesanan", err.Error())
 		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+
+	pesanan, err := bengkelPesananRepo.GetPesananById(pesananId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get pesanan", err.Error())
+		c.AbortWithStatusJSON(http.StatusNotFound, response)
 		return
 	}
 
