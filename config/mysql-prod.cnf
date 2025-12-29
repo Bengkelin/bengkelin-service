@@ -1,0 +1,79 @@
+[mysqld]
+# Production MySQL configuration
+
+# Basic settings
+default-storage-engine = InnoDB
+sql-mode = "STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION"
+default-time-zone = '+07:00'
+
+# Character set
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+# Connection settings
+max_connections = 300
+max_connect_errors = 1000000
+max_allowed_packet = 64M
+interactive_timeout = 600
+wait_timeout = 600
+
+# InnoDB settings
+innodb_buffer_pool_size = 512M
+innodb_buffer_pool_instances = 2
+innodb_log_file_size = 256M
+innodb_log_buffer_size = 64M
+innodb_flush_log_at_trx_commit = 2
+innodb_flush_method = O_DIRECT
+innodb_file_per_table = 1
+innodb_open_files = 400
+innodb_io_capacity = 400
+innodb_io_capacity_max = 2000
+
+# Query cache (disabled in MySQL 8.0+, but keeping for compatibility)
+# query_cache_type = 0
+# query_cache_size = 0
+
+# Logging
+general_log = 0
+slow_query_log = 1
+slow_query_log_file = /var/lib/mysql/slow.log
+long_query_time = 2
+log_queries_not_using_indexes = 0
+
+# Binary logging
+log-bin = mysql-bin
+binlog_format = ROW
+expire_logs_days = 7
+max_binlog_size = 100M
+sync_binlog = 0
+
+# MyISAM settings
+key_buffer_size = 32M
+myisam_recover_options = FORCE,BACKUP
+
+# Thread settings
+thread_cache_size = 50
+thread_stack = 256K
+
+# Table settings
+table_open_cache = 4000
+table_definition_cache = 2000
+
+# Temporary tables
+tmp_table_size = 64M
+max_heap_table_size = 64M
+
+# Sort and group settings
+sort_buffer_size = 2M
+read_buffer_size = 2M
+read_rnd_buffer_size = 8M
+join_buffer_size = 2M
+
+# Security settings
+local_infile = 0
+
+[mysql]
+default-character-set = utf8mb4
+
+[client]
+default-character-set = utf8mb4

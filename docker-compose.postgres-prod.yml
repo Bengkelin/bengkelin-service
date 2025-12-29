@@ -1,0 +1,75 @@
+version: '3.8'
+
+# PostgreSQL production environment
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.postgres-prod.yml up
+
+services:
+  # Main application service - PostgreSQL production configuration
+  bengkelin-api:
+    environment:
+      # Database Configuration for PostgreSQL
+      - DATABASE_DRIVER=postgres
+      - DATABASE_NAME=${DATABASE_NAME:-bengkelin_db}
+      - DATABASE_USERNAME=${DATABASE_USERNAME:-bengkelin_user}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_HOST=postgres-db
+      - DATABASE_PORT=5432
+      - POSTGRES_SSLMODE=${POSTGRES_SSLMODE:-require}
+      - POSTGRES_TIMEZONE=${POSTGRES_TIMEZONE:-Asia/Jakarta}
+      
+      # Production database settings
+      - DATABASE_MAX_OPEN_CONNS=300
+      - DATABASE_MAX_IDLE_CONNS=150
+      - DATABASE_MAX_LIFETIME=3600
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # PostgreSQL Database - production configuration
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: bengkelin-postgres-prod
+    restart: always
+    environment:
+      - POSTGRES_DB=${DATABASE_NAME:-bengkelin_db}
+      - POSTGRES_USER=${DATABASE_USERNAME:-bengkelin_user}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+      - TZ=${POSTGRES_TIMEZONE:-Asia/Jakarta}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./config/postgresql-prod.conf:/etc/postgresql/postgresql.conf:ro
+      - ./config/ssl:/etc/postgresql/ssl:ro
+    networks:
+      - bengkelin-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME:-bengkelin_user} -d ${DATABASE_NAME:-bengkelin_db}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: >
+      postgres
+      -c config_file=/etc/postgresql/postgresql.conf
+      -c ssl=on
+      -c ssl_cert_file=/etc/postgresql/ssl/server.crt
+      -c ssl_key_file=/etc/postgresql/ssl/server.key
+
+volumes:
+  postgres_prod_data:
+    driver: local
+
+networks:
+  bengkelin-network:
+    driver: bridge

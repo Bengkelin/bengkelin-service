@@ -1,0 +1,141 @@
+version: '3.8'
+
+# Production Docker Compose configuration
+# This extends the base docker-compose.yml with production-specific settings
+
+services:
+  # Main application service - production configuration
+  bengkelin-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILD_ENV=production
+    container_name: bengkelin-api-prod
+    restart: always
+    environment:
+      # Production server configuration
+      - SERVER_MODE=release
+      - SERVER_DEV_MODE=false
+      - LOG_LEVEL=info
+      - GIN_MODE=release
+      
+      # Security - use secrets in production
+      - SERVER_SECRET=${SERVER_SECRET}
+      - SERVER_SECRET2=${SERVER_SECRET2}
+      - SERVER_REFRESH_SECRET=${SERVER_REFRESH_SECRET}
+      - SERVER_REFRESH_SECRET2=${SERVER_REFRESH_SECRET2}
+      
+      # Database - production settings
+      - DATABASE_MAX_OPEN_CONNS=200
+      - DATABASE_MAX_IDLE_CONNS=100
+      - DATABASE_MAX_LIFETIME=3600
+      
+      # Rate limiting - stricter in production
+      - RATE_LIMIT_GENERAL_RPS=1.0
+      - RATE_LIMIT_AUTH_RPS=0.1
+      - RATE_LIMIT_STRICT_RPS=0.05
+    volumes:
+      - ./public:/public:ro
+      - prod_logs:/var/log/bengkelin
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # MySQL Database - production configuration
+  db:
+    image: mysql:8.0
+    container_name: bengkelin-db-prod
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DATABASE_NAME}
+      - MYSQL_USER=${DATABASE_USERNAME}
+      - MYSQL_PASSWORD=${DATABASE_PASSWORD}
+    volumes:
+      - prod_db_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./config/mysql-prod.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=512M
+      --max-connections=300
+      --innodb-log-file-size=256M
+      --innodb-flush-log-at-trx-commit=2
+      --sync-binlog=0
+      --innodb-flush-method=O_DIRECT
+
+  # Redis - production configuration
+  redis:
+    image: redis:7-alpine
+    container_name: bengkelin-redis-prod
+    restart: always
+    volumes:
+      - prod_redis_data:/data
+      - ./config/redis-prod.conf:/usr/local/etc/redis/redis.conf:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+  # Nginx - production configuration with SSL
+  nginx:
+    image: nginx:alpine
+    container_name: bengkelin-nginx-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx-prod.conf:/etc/nginx/nginx.conf:ro
+      - ./config/ssl:/etc/nginx/ssl:ro
+      - prod_nginx_logs:/var/log/nginx
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+volumes:
+  prod_db_data:
+    driver: local
+  prod_redis_data:
+    driver: local
+  prod_logs:
+    driver: local
+  prod_nginx_logs:
+    driver: local
+
+networks:
+  default:
+    name: bengkelin-prod-network
+    driver: bridge

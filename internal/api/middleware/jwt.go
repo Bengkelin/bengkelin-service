@@ -7,7 +7,6 @@ import (
 	"github.com/Bengkelin/bengkelin-service/pkg/crypto"
 	"github.com/Bengkelin/bengkelin-service/pkg/response"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
 )
 
 // Func to authorizing jwt token
@@ -20,7 +19,14 @@ func AuthJWT() gin.HandlerFunc {
 			return
 		}
 
-		tokenString := strings.Split(authHeader, " ")[1]
+		// Check if header starts with "Bearer "
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			response := response.BuildFailedResponse("invalid token format", nil)
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		jwtHelper := crypto.GetJWTCrypto()
 		token, err := jwtHelper.ValidateToken(tokenString)
 
@@ -30,14 +36,15 @@ func AuthJWT() gin.HandlerFunc {
 			return
 		}
 
-		claim, ok := token.Claims.(jwt.MapClaims)
-		if !ok || !token.Valid {
-			response := response.BuildFailedResponse("token is expired, please try login", err.Error())
+		// Extract user ID using the new method
+		userID, err := jwtHelper.GetUserIDFromToken(tokenString)
+		if err != nil {
+			response := response.BuildFailedResponse("failed to extract user ID from token", err.Error())
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response)
 			return
 		}
 
-		c.Set("id", claim["user_id"])
+		c.Set("id", userID)
 	}
 }
 
@@ -51,7 +58,14 @@ func AuthJWTMitra() gin.HandlerFunc {
 			return
 		}
 
-		tokenString := strings.Split(authHeader, " ")[1]
+		// Check if header starts with "Bearer "
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			response := response.BuildFailedResponse("invalid token format", nil)
+			c.AbortWithStatusJSON(http.StatusBadRequest, response)
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		jwtHelper := crypto.GetJWTCrypto()
 		token, err := jwtHelper.ValidateTokenMitra(tokenString)
 
@@ -61,13 +75,14 @@ func AuthJWTMitra() gin.HandlerFunc {
 			return
 		}
 
-		claim, ok := token.Claims.(jwt.MapClaims)
-		if !ok || !token.Valid {
-			response := response.BuildFailedResponse("token is expired, please try login", err.Error())
+		// Extract mitra ID using the new method
+		mitraID, err := jwtHelper.GetMitraIDFromToken(tokenString)
+		if err != nil {
+			response := response.BuildFailedResponse("failed to extract mitra ID from token", err.Error())
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response)
 			return
 		}
 
-		c.Set("id", claim["mitra_id"])
+		c.Set("id", mitraID)
 	}
 }

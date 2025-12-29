@@ -11,6 +11,7 @@ var Config *Configuration
 // Struct of Configuration instance.
 // It include Database and Server configuration
 type Configuration struct {
+	App           AppConfiguration
 	Database      DatabaseConfiguration
 	Database_Test DatabaseTestConfiguration
 	Cloudinary    StorageCloudinary
@@ -20,6 +21,14 @@ type Configuration struct {
 	SMTP          SMTPConfiguration
 	Supabase      SupabaseConfiguration
 	Agore         AgoreConfiguration
+	RateLimit     RateLimitConfiguration
+}
+
+// Struct of App Configuration instance
+type AppConfiguration struct {
+	Name        string `mapstructure:"APP_NAME"`
+	Version     string `mapstructure:"APP_VERSION"`
+	Environment string `mapstructure:"APP_ENVIRONMENT"`
 }
 
 // Struct of Database Configuration instance.
@@ -79,15 +88,29 @@ type StorageCloudinary struct {
 
 // Struct of Server Configuration instance.
 type ServerConnection struct {
-	Host        string `mapstructure:"SERVER_HOST"`
-	Port        string `mapstructure:"SERVER_PORT"`
-	Secret      string `mapstructure:"SERVER_SECRET"`
-	Secret2     string `mapstructure:"SERVER_SECRET2"`
-	ApiSecret   string `mapstructure:"API_SECRET"`
-	DevMode     string `mapstructure:"SERVER_DEV_MODE"`
-	Mode        string `mapstructure:"SERVER_MODE"`
-	Name        string `mapstructure:"SERVER_NAME"`
-	ExpiresHour int64  `mapstructure:"SERVER_EXPIRES_HOUR"`
+	Host                 string `mapstructure:"SERVER_HOST"`
+	Port                 string `mapstructure:"SERVER_PORT"`
+	Secret               string `mapstructure:"SERVER_SECRET"`
+	Secret2              string `mapstructure:"SERVER_SECRET2"`
+	ApiSecret            string `mapstructure:"API_SECRET"`
+	DevMode              string `mapstructure:"SERVER_DEV_MODE"`
+	Mode                 string `mapstructure:"SERVER_MODE"`
+	Name                 string `mapstructure:"SERVER_NAME"`
+	ExpiresHour          int64  `mapstructure:"SERVER_EXPIRES_HOUR"`
+	RefreshSecret        string `mapstructure:"SERVER_REFRESH_SECRET"`
+	RefreshSecret2       string `mapstructure:"SERVER_REFRESH_SECRET2"`
+	RefreshExpiresHour   int64  `mapstructure:"SERVER_REFRESH_EXPIRES_HOUR"`
+}
+
+// Struct for Rate Limiting Configuration
+type RateLimitConfiguration struct {
+	GeneralRPS    float64 `mapstructure:"RATE_LIMIT_GENERAL_RPS"`
+	GeneralBurst  int     `mapstructure:"RATE_LIMIT_GENERAL_BURST"`
+	AuthRPS       float64 `mapstructure:"RATE_LIMIT_AUTH_RPS"`
+	AuthBurst     int     `mapstructure:"RATE_LIMIT_AUTH_BURST"`
+	StrictRPS     float64 `mapstructure:"RATE_LIMIT_STRICT_RPS"`
+	StrictBurst   int     `mapstructure:"RATE_LIMIT_STRICT_BURST"`
+	Enabled       bool    `mapstructure:"RATE_LIMIT_ENABLED"`
 }
 
 type AgoreConfiguration struct {
@@ -99,6 +122,7 @@ type AgoreConfiguration struct {
 // Setup the configuration
 func Setup(configPath string) {
 	var (
+		appConfiguration          AppConfiguration
 		databaseConfiguration     DatabaseConfiguration
 		databaseTestConfiguration DatabaseTestConfiguration
 		cloudinaryConfiguration   StorageCloudinary
@@ -108,6 +132,7 @@ func Setup(configPath string) {
 		smtpConfiguration         SMTPConfiguration
 		supabaseConfiguration     SupabaseConfiguration
 		agoreConfiguration        AgoreConfiguration
+		rateLimitConfiguration    RateLimitConfiguration
 	)
 
 	viper.SetConfigFile(configPath)
@@ -117,6 +142,7 @@ func Setup(configPath string) {
 		log.Fatalf("Error reading config file, %s", err)
 	}
 
+	unmarshalConfiguration(&appConfiguration)
 	unmarshalConfiguration(&databaseConfiguration)
 	unmarshalConfiguration(&databaseTestConfiguration)
 	unmarshalConfiguration(&cloudinaryConfiguration)
@@ -126,8 +152,43 @@ func Setup(configPath string) {
 	unmarshalConfiguration(&smtpConfiguration)
 	unmarshalConfiguration(&supabaseConfiguration)
 	unmarshalConfiguration(&agoreConfiguration)
+	unmarshalConfiguration(&rateLimitConfiguration)
+
+	// Set default values for app configuration if not set
+	if appConfiguration.Name == "" {
+		appConfiguration.Name = "Bengkelin API"
+	}
+	if appConfiguration.Version == "" {
+		appConfiguration.Version = "1.0.0"
+	}
+	if appConfiguration.Environment == "" {
+		appConfiguration.Environment = "development"
+	}
+
+	// Set default values for rate limiting if not configured
+	if rateLimitConfiguration.GeneralRPS == 0 {
+		rateLimitConfiguration.GeneralRPS = 100.0 / 60.0 // 100 requests per minute
+	}
+	if rateLimitConfiguration.GeneralBurst == 0 {
+		rateLimitConfiguration.GeneralBurst = 10
+	}
+	if rateLimitConfiguration.AuthRPS == 0 {
+		rateLimitConfiguration.AuthRPS = 10.0 / 60.0 // 10 requests per minute
+	}
+	if rateLimitConfiguration.AuthBurst == 0 {
+		rateLimitConfiguration.AuthBurst = 5
+	}
+	if rateLimitConfiguration.StrictRPS == 0 {
+		rateLimitConfiguration.StrictRPS = 5.0 / 60.0 // 5 requests per minute
+	}
+	if rateLimitConfiguration.StrictBurst == 0 {
+		rateLimitConfiguration.StrictBurst = 2
+	}
+	// Rate limiting is enabled by default
+	rateLimitConfiguration.Enabled = true
 
 	configuration := Configuration{
+		App:           appConfiguration,
 		Database:      databaseConfiguration,
 		Database_Test: databaseTestConfiguration,
 		Cloudinary:    cloudinaryConfiguration,
@@ -137,6 +198,7 @@ func Setup(configPath string) {
 		SMTP:          smtpConfiguration,
 		Supabase:      supabaseConfiguration,
 		Agore:         agoreConfiguration,
+		RateLimit:     rateLimitConfiguration,
 	}
 
 	Config = &configuration

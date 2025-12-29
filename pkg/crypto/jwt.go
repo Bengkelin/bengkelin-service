@@ -5,117 +5,387 @@ import (
 	"time"
 
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
+	"github.com/Bengkelin/bengkelin-service/pkg/helpers"
 	"github.com/golang-jwt/jwt"
 )
 
 var jwtHelper *jwtCryptoHelper
 
-// Contract fot JWT Crypto Helper
+// TokenPair represents access and refresh token pair
+type TokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int64  `json:"expires_in"`
+	TokenType    string `json:"token_type"`
+}
+
+// Contract for JWT Crypto Helper
 type JWTCryptoHelper interface {
-	GenerateToken(UserId string) (string, error)
-	GenerateTokenMitra(MitraId string) (string, error)
+	GenerateTokenPair(userID string) (*TokenPair, error)
+	GenerateTokenPairMitra(mitraID string) (*TokenPair, error)
 	ValidateToken(tokenString string) (*jwt.Token, error)
 	ValidateTokenMitra(tokenString string) (*jwt.Token, error)
+	ValidateRefreshToken(tokenString string) (*jwt.Token, error)
+	ValidateRefreshTokenMitra(tokenString string) (*jwt.Token, error)
+	RefreshAccessToken(refreshToken string) (*TokenPair, error)
+	RefreshAccessTokenMitra(refreshToken string) (*TokenPair, error)
+	RevokeRefreshToken(refreshToken string) error
+	RevokeAllUserTokens(userID string) error
+	RevokeAllMitraTokens(mitraID string) error
+	GetUserIDFromToken(tokenString string) (string, error)
+	GetMitraIDFromToken(tokenString string) (string, error)
 }
 
 // Struct for jwt custom claim
 type jwtCustomClaim struct {
-	UserID string `json:"user_id"`
+	UserID    string `json:"user_id"`
+	TokenType string `json:"token_type"` // "access" or "refresh"
 	jwt.StandardClaims
 }
 
 type jwtCustomClaimMitra struct {
-	MitraId string `json:"mitra_id"`
+	MitraID   string `json:"mitra_id"`
+	TokenType string `json:"token_type"` // "access" or "refresh"
 	jwt.StandardClaims
 }
 
 // Struct for JWTHelper
 type jwtCryptoHelper struct {
+	refreshTokenRepo repository.RefreshTokenRepositoryInterface
 }
 
 // Func to initialize new jwt crypto helper
 func GetJWTCrypto() JWTCryptoHelper {
 	if jwtHelper == nil {
-		jwtHelper = &jwtCryptoHelper{}
+		jwtHelper = &jwtCryptoHelper{
+			refreshTokenRepo: repository.GetRefreshTokenRepository(),
+		}
 	}
 	return jwtHelper
 }
 
-// Func to Generate Token with User ID as main issuer
-func (helper *jwtCryptoHelper) GenerateToken(UserID string) (string, error) {
+// GenerateTokenPair generates both access and refresh tokens for user
+func (helper *jwtCryptoHelper) GenerateTokenPair(userID string) (*TokenPair, error) {
 	serverConfiguration := config.GetConfig().Server
-	claims := &jwtCustomClaim{
-		UserID,
-		jwt.StandardClaims{
-			//ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(serverConfiguration.ExpiresHour)).Unix(),
+	
+	// Generate access token (short-lived)
+	accessClaims := &jwtCustomClaim{
+		UserID:    userID,
+		TokenType: "access",
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Hour * time.Duration(serverConfiguration.ExpiresHour)).Unix(),
 			Issuer:    serverConfiguration.Name,
 			IssuedAt:  time.Now().Unix(),
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
-	t, err := token.SignedString([]byte(serverConfiguration.Secret))
+	
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS512, accessClaims)
+	accessTokenString, err := accessToken.SignedString([]byte(serverConfiguration.Secret))
 	if err != nil {
-		return err.Error(), err
+		return nil, err
 	}
-	return t, nil
-}
-
-func (helper *jwtCryptoHelper) GenerateTokenMitra(MitraId string) (string, error) {
-	serverConfiguration := config.GetConfig().Server
-	claims := &jwtCustomClaimMitra{
-		MitraId,
-		jwt.StandardClaims{
-			//ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(serverConfiguration.ExpiresHour)).Unix(),
+	
+	// Generate refresh token (long-lived)
+	refreshClaims := &jwtCustomClaim{
+		UserID:    userID,
+		TokenType: "refresh",
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Hour * time.Duration(serverConfiguration.RefreshExpiresHour)).Unix(),
 			Issuer:    serverConfiguration.Name,
 			IssuedAt:  time.Now().Unix(),
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
-	t, err := token.SignedString([]byte(serverConfiguration.Secret2))
+	
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS512, refreshClaims)
+	refreshTokenString, err := refreshToken.SignedString([]byte(serverConfiguration.RefreshSecret))
 	if err != nil {
-		return err.Error(), err
+		return nil, err
 	}
-	return t, nil
+	
+	// Store refresh token in database
+	refreshTokenModel := models.RefreshToken{
+		ID:        helpers.GenerateUUID(),
+		UserID:    &userID,
+		Token:     refreshTokenString,
+		ExpiresAt: time.Unix(refreshClaims.ExpiresAt, 0),
+		IsRevoked: false,
+	}
+	
+	_, err = helper.refreshTokenRepo.CreateRefreshToken(refreshTokenModel)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &TokenPair{
+		AccessToken:  accessTokenString,
+		RefreshToken: refreshTokenString,
+		ExpiresIn:    serverConfiguration.ExpiresHour * 3600, // Convert hours to seconds
+		TokenType:    "Bearer",
+	}, nil
 }
 
-// Func to validate token
+// GenerateTokenPairMitra generates both access and refresh tokens for mitra
+func (helper *jwtCryptoHelper) GenerateTokenPairMitra(mitraID string) (*TokenPair, error) {
+	serverConfiguration := config.GetConfig().Server
+	
+	// Generate access token (short-lived)
+	accessClaims := &jwtCustomClaimMitra{
+		MitraID:   mitraID,
+		TokenType: "access",
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Hour * time.Duration(serverConfiguration.ExpiresHour)).Unix(),
+			Issuer:    serverConfiguration.Name,
+			IssuedAt:  time.Now().Unix(),
+		},
+	}
+	
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS512, accessClaims)
+	accessTokenString, err := accessToken.SignedString([]byte(serverConfiguration.Secret2))
+	if err != nil {
+		return nil, err
+	}
+	
+	// Generate refresh token (long-lived)
+	refreshClaims := &jwtCustomClaimMitra{
+		MitraID:   mitraID,
+		TokenType: "refresh",
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Hour * time.Duration(serverConfiguration.RefreshExpiresHour)).Unix(),
+			Issuer:    serverConfiguration.Name,
+			IssuedAt:  time.Now().Unix(),
+		},
+	}
+	
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS512, refreshClaims)
+	refreshTokenString, err := refreshToken.SignedString([]byte(serverConfiguration.RefreshSecret2))
+	if err != nil {
+		return nil, err
+	}
+	
+	// Store refresh token in database
+	refreshTokenModel := models.RefreshToken{
+		ID:        helpers.GenerateUUID(),
+		MitraID:   &mitraID,
+		Token:     refreshTokenString,
+		ExpiresAt: time.Unix(refreshClaims.ExpiresAt, 0),
+		IsRevoked: false,
+	}
+	
+	_, err = helper.refreshTokenRepo.CreateRefreshToken(refreshTokenModel)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &TokenPair{
+		AccessToken:  accessTokenString,
+		RefreshToken: refreshTokenString,
+		ExpiresIn:    serverConfiguration.ExpiresHour * 3600, // Convert hours to seconds
+		TokenType:    "Bearer",
+	}, nil
+}
+
+// ValidateToken validates access token for users
 func (helper *jwtCryptoHelper) ValidateToken(tokenString string) (*jwt.Token, error) {
 	serverConfiguration := config.GetConfig().Server
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &jwtCustomClaim{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("there was an error")
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(serverConfiguration.Secret), nil
 	})
+	
 	if err != nil {
 		return nil, err
 	}
+	
+	// Check if token type is access
+	if claims, ok := token.Claims.(*jwtCustomClaim); ok && token.Valid {
+		if claims.TokenType != "access" {
+			return nil, fmt.Errorf("invalid token type")
+		}
+	}
+	
 	return token, nil
 }
 
+// ValidateTokenMitra validates access token for mitras
 func (helper *jwtCryptoHelper) ValidateTokenMitra(tokenString string) (*jwt.Token, error) {
 	serverConfiguration := config.GetConfig().Server
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &jwtCustomClaimMitra{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("there was an error")
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(serverConfiguration.Secret2), nil
 	})
+	
 	if err != nil {
 		return nil, err
 	}
+	
+	// Check if token type is access
+	if claims, ok := token.Claims.(*jwtCustomClaimMitra); ok && token.Valid {
+		if claims.TokenType != "access" {
+			return nil, fmt.Errorf("invalid token type")
+		}
+	}
+	
 	return token, nil
 }
 
-// Func to get user id from token
+// ValidateRefreshToken validates refresh token for users
+func (helper *jwtCryptoHelper) ValidateRefreshToken(tokenString string) (*jwt.Token, error) {
+	serverConfiguration := config.GetConfig().Server
+	token, err := jwt.ParseWithClaims(tokenString, &jwtCustomClaim{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(serverConfiguration.RefreshSecret), nil
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	// Check if token type is refresh
+	if claims, ok := token.Claims.(*jwtCustomClaim); ok && token.Valid {
+		if claims.TokenType != "refresh" {
+			return nil, fmt.Errorf("invalid token type")
+		}
+		
+		// Check if token exists in database and is not revoked
+		_, err := helper.refreshTokenRepo.FindRefreshTokenByToken(tokenString)
+		if err != nil {
+			return nil, fmt.Errorf("refresh token not found or revoked")
+		}
+	}
+	
+	return token, nil
+}
+
+// ValidateRefreshTokenMitra validates refresh token for mitras
+func (helper *jwtCryptoHelper) ValidateRefreshTokenMitra(tokenString string) (*jwt.Token, error) {
+	serverConfiguration := config.GetConfig().Server
+	token, err := jwt.ParseWithClaims(tokenString, &jwtCustomClaimMitra{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(serverConfiguration.RefreshSecret2), nil
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	// Check if token type is refresh
+	if claims, ok := token.Claims.(*jwtCustomClaimMitra); ok && token.Valid {
+		if claims.TokenType != "refresh" {
+			return nil, fmt.Errorf("invalid token type")
+		}
+		
+		// Check if token exists in database and is not revoked
+		_, err := helper.refreshTokenRepo.FindRefreshTokenByToken(tokenString)
+		if err != nil {
+			return nil, fmt.Errorf("refresh token not found or revoked")
+		}
+	}
+	
+	return token, nil
+}
+
+// RefreshAccessToken generates new access token using refresh token for users
+func (helper *jwtCryptoHelper) RefreshAccessToken(refreshToken string) (*TokenPair, error) {
+	// Validate refresh token
+	token, err := helper.ValidateRefreshToken(refreshToken)
+	if err != nil {
+		return nil, err
+	}
+	
+	claims, ok := token.Claims.(*jwtCustomClaim)
+	if !ok {
+		return nil, fmt.Errorf("invalid token claims")
+	}
+	
+	// Revoke old refresh token
+	err = helper.RevokeRefreshToken(refreshToken)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Generate new token pair
+	return helper.GenerateTokenPair(claims.UserID)
+}
+
+// RefreshAccessTokenMitra generates new access token using refresh token for mitras
+func (helper *jwtCryptoHelper) RefreshAccessTokenMitra(refreshToken string) (*TokenPair, error) {
+	// Validate refresh token
+	token, err := helper.ValidateRefreshTokenMitra(refreshToken)
+	if err != nil {
+		return nil, err
+	}
+	
+	claims, ok := token.Claims.(*jwtCustomClaimMitra)
+	if !ok {
+		return nil, fmt.Errorf("invalid token claims")
+	}
+	
+	// Revoke old refresh token
+	err = helper.RevokeRefreshToken(refreshToken)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Generate new token pair
+	return helper.GenerateTokenPairMitra(claims.MitraID)
+}
+
+// RevokeRefreshToken revokes a specific refresh token
+func (helper *jwtCryptoHelper) RevokeRefreshToken(refreshToken string) error {
+	tokenModel, err := helper.refreshTokenRepo.FindRefreshTokenByToken(refreshToken)
+	if err != nil {
+		return err
+	}
+	
+	return helper.refreshTokenRepo.RevokeRefreshToken(tokenModel.ID)
+}
+
+// RevokeAllUserTokens revokes all refresh tokens for a user
+func (helper *jwtCryptoHelper) RevokeAllUserTokens(userID string) error {
+	return helper.refreshTokenRepo.RevokeAllUserRefreshTokens(userID)
+}
+
+// RevokeAllMitraTokens revokes all refresh tokens for a mitra
+func (helper *jwtCryptoHelper) RevokeAllMitraTokens(mitraID string) error {
+	return helper.refreshTokenRepo.RevokeAllMitraRefreshTokens(mitraID)
+}
+
+// GetUserIDFromToken extracts user ID from access token
 func (helper *jwtCryptoHelper) GetUserIDFromToken(tokenString string) (string, error) {
 	token, err := helper.ValidateToken(tokenString)
 	if err != nil {
 		return "", err
 	}
-	claim, ok := token.Claims.(jwt.MapClaims)
+	
+	claims, ok := token.Claims.(*jwtCustomClaim)
 	if !ok || !token.Valid {
 		return "", fmt.Errorf("token is invalid")
 	}
-	return claim["user_id"].(string), nil
+	
+	return claims.UserID, nil
+}
+
+// GetMitraIDFromToken extracts mitra ID from access token
+func (helper *jwtCryptoHelper) GetMitraIDFromToken(tokenString string) (string, error) {
+	token, err := helper.ValidateTokenMitra(tokenString)
+	if err != nil {
+		return "", err
+	}
+	
+	claims, ok := token.Claims.(*jwtCustomClaimMitra)
+	if !ok || !token.Valid {
+		return "", fmt.Errorf("token is invalid")
+	}
+	
+	return claims.MitraID, nil
 }

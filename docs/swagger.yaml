@@ -1,0 +1,516 @@
+basePath: /api/v1
+definitions:
+  dto.AuthResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      mitra:
+        $ref: '#/definitions/dto.MitraInfo'
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/dto.UserInfo'
+    type: object
+  dto.MitraInfo:
+    properties:
+      bank_name:
+        type: string
+      bank_number:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      phone_number:
+        type: string
+    type: object
+  dto.UserInfo:
+    properties:
+      avatar_url:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      phone_number:
+        type: string
+    type: object
+  handlers.ApplicationMetrics:
+    properties:
+      database:
+        $ref: '#/definitions/handlers.DatabaseMetrics'
+      environment:
+        example: production
+        type: string
+      http:
+        $ref: '#/definitions/handlers.HTTPMetrics'
+      redis:
+        $ref: '#/definitions/handlers.RedisMetrics'
+      system:
+        $ref: '#/definitions/handlers.SystemMetrics'
+      timestamp:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      uptime:
+        example: 1h30m45s
+        type: string
+      version:
+        example: 1.0.0
+        type: string
+    type: object
+  handlers.CheckResult:
+    properties:
+      duration:
+        example: 5ms
+        type: string
+      message:
+        example: Connection successful
+        type: string
+      status:
+        example: healthy
+        type: string
+      timestamp:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
+  handlers.DatabaseMetrics:
+    properties:
+      idle_connections:
+        example: 3
+        type: integer
+      in_use_connections:
+        example: 2
+        type: integer
+      max_idle_time_closed:
+        example: 0
+        type: integer
+      max_lifetime_closed:
+        example: 0
+        type: integer
+      max_open_connections:
+        example: 25
+        type: integer
+      open_connections:
+        example: 5
+        type: integer
+      wait_count:
+        example: 0
+        type: integer
+      wait_duration:
+        example: 0s
+        type: string
+    type: object
+  handlers.HTTPMetrics:
+    properties:
+      average_latency:
+        example: 50ms
+        type: string
+      requests_by_status:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      total_requests:
+        example: 5000
+        type: integer
+    type: object
+  handlers.HealthStatus:
+    properties:
+      checks:
+        additionalProperties:
+          $ref: '#/definitions/handlers.CheckResult'
+        type: object
+      environment:
+        example: production
+        type: string
+      status:
+        example: healthy
+        type: string
+      timestamp:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      uptime:
+        example: 1h30m45s
+        type: string
+      version:
+        example: 1.0.0
+        type: string
+    type: object
+  handlers.RedisMetrics:
+    properties:
+      hits:
+        example: 1000
+        type: integer
+      idle_conns:
+        example: 8
+        type: integer
+      min_idle_conns:
+        example: 5
+        type: integer
+      misses:
+        example: 50
+        type: integer
+      pool_size:
+        example: 10
+        type: integer
+      stale_conns:
+        example: 0
+        type: integer
+      total_conns:
+        example: 10
+        type: integer
+    type: object
+  handlers.SystemMetrics:
+    properties:
+      cpu_count:
+        example: 4
+        type: integer
+      gc_runs:
+        example: 10
+        type: integer
+      go_version:
+        example: go1.21.0
+        type: string
+      goroutines:
+        example: 25
+        type: integer
+      memory_alloc_bytes:
+        example: 1048576
+        type: integer
+      memory_sys_bytes:
+        example: 4194304
+        type: integer
+      memory_total_bytes:
+        example: 2097152
+        type: integer
+    type: object
+  response.Response:
+    properties:
+      data: {}
+      errors: {}
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  validator.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        maxLength: 128
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  validator.RegisterNewUserRequest:
+    properties:
+      confirm_password:
+        maxLength: 128
+        minLength: 8
+        type: string
+      email:
+        type: string
+      first_name:
+        maxLength: 50
+        minLength: 1
+        type: string
+      last_name:
+        maxLength: 50
+        minLength: 1
+        type: string
+      password:
+        maxLength: 128
+        minLength: 8
+        type: string
+      phone_number:
+        type: string
+    required:
+    - confirm_password
+    - email
+    - first_name
+    - last_name
+    - password
+    - phone_number
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@bengkelin.com
+    name: Bengkelin API Support
+    url: https://bengkelin.com/support
+  description: |-
+    Bengkelin service API for connecting users with automotive repair shops (bengkels)
+
+    This API provides endpoints for:
+    - User authentication and management
+    - Bengkel (automotive repair shop) management
+    - Order and service management
+    - Chat functionality
+    - Health monitoring and metrics
+
+    ## Authentication
+    This API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
+    `Authorization: Bearer <your-jwt-token>`
+
+    ## Rate Limiting
+    API endpoints are rate limited:
+    - General endpoints: 100 requests per minute
+    - Authentication endpoints: 10 requests per minute
+    - Login/Register endpoints: 5 requests per minute
+
+    ## Error Handling
+    The API returns structured error responses with appropriate HTTP status codes.
+    All responses follow a consistent format with `status`, `message`, and optional `data` fields.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Bengkelin API
+  version: "1.0"
+paths:
+  /api/v1/mitras/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a mitra (bengkel owner) with email and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/validator.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AuthResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/response.Response'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Mitra login
+      tags:
+      - Auth
+  /api/v1/users/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user with email and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/validator.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AuthResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/response.Response'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: User login
+      tags:
+      - Auth
+  /api/v1/users/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user account
+      parameters:
+      - description: Registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/validator.RegisterNewUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Registration successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AuthResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/response.Response'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: User registration
+      tags:
+      - Auth
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Get the health status of the application and its dependencies
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Health status
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.HealthStatus'
+              type: object
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Health check endpoint
+      tags:
+      - Health
+  /live:
+    get:
+      consumes:
+      - application/json
+      description: Check if the application is alive and responding
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service alive
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.HealthStatus'
+              type: object
+      summary: Liveness check endpoint
+      tags:
+      - Health
+  /metrics:
+    get:
+      description: Get Prometheus-formatted metrics for monitoring
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Prometheus metrics
+          schema:
+            type: string
+      summary: Prometheus metrics endpoint
+      tags:
+      - Metrics
+  /metrics/app:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed application metrics in JSON format
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Application metrics
+          schema:
+            $ref: '#/definitions/handlers.ApplicationMetrics'
+      summary: Application metrics endpoint
+      tags:
+      - Metrics
+  /ready:
+    get:
+      consumes:
+      - application/json
+      description: Check if the application is ready to serve requests
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service ready
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.HealthStatus'
+              type: object
+        "503":
+          description: Service not ready
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Readiness check endpoint
+      tags:
+      - Health
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -1,0 +1,138 @@
+version: '3.8'
+
+# Development Docker Compose configuration
+# This extends the base docker-compose.yml with development-specific settings
+
+services:
+  # Main application service - development configuration
+  bengkelin-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        - BUILD_ENV=development
+    container_name: bengkelin-api-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "2345:2345"  # Delve debugger port
+    environment:
+      # Development server configuration
+      - SERVER_MODE=debug
+      - SERVER_DEV_MODE=true
+      - LOG_LEVEL=debug
+      - GIN_MODE=debug
+      
+      # Development secrets (not for production!)
+      - SERVER_SECRET=dev-secret-key-change-in-production
+      - SERVER_SECRET2=dev-secret-key2-change-in-production
+      - SERVER_REFRESH_SECRET=dev-refresh-secret-change-in-production
+      - SERVER_REFRESH_SECRET2=dev-refresh-secret2-change-in-production
+      
+      # Relaxed rate limiting for development
+      - RATE_LIMIT_GENERAL_RPS=10.0
+      - RATE_LIMIT_AUTH_RPS=5.0
+      - RATE_LIMIT_STRICT_RPS=2.0
+    volumes:
+      - .:/app:cached
+      - ./public:/public
+      - dev_logs:/var/log/bengkelin
+      - go_mod_cache:/go/pkg/mod
+    working_dir: /app
+    command: >
+      sh -c "
+        echo 'Starting development server...' &&
+        go mod download &&
+        go run cmd/app/main.go
+      "
+
+  # MySQL Database - development configuration
+  db:
+    image: mysql:8.0
+    container_name: bengkelin-db-dev
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_dev_password
+      - MYSQL_DATABASE=bengkelin_dev_db
+      - MYSQL_USER=bengkelin_dev_user
+      - MYSQL_PASSWORD=bengkelin_dev_password
+    volumes:
+      - dev_db_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=128M
+      --max-connections=100
+      --general-log=1
+      --general-log-file=/var/lib/mysql/general.log
+      --slow-query-log=1
+      --slow-query-log-file=/var/lib/mysql/slow.log
+      --long-query-time=2
+
+  # Redis - development configuration
+  redis:
+    image: redis:7-alpine
+    container_name: bengkelin-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - dev_redis_data:/data
+      - ./config/redis-dev.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+  # Redis Commander for development (Redis GUI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: bengkelin-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+
+  # phpMyAdmin for development (MySQL GUI)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: bengkelin-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=db
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=root_dev_password
+      - MYSQL_ROOT_PASSWORD=root_dev_password
+    depends_on:
+      - db
+
+  # Mailhog for email testing in development
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: bengkelin-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+
+volumes:
+  dev_db_data:
+    driver: local
+  dev_redis_data:
+    driver: local
+  dev_logs:
+    driver: local
+  go_mod_cache:
+    driver: local
+
+networks:
+  default:
+    name: bengkelin-dev-network
+    driver: bridge

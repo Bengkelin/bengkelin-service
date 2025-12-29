@@ -7,16 +7,16 @@ type Bengkel struct {
 	MitraID      string               `gorm:"reference;unique" json:"-"`
 	BengkelName  string               `gorm:"type:varchar(255)" json:"bengkel_name"`
 	BengkelPhone string               `gorm:"type:varchar(255)" json:"bengkel_phone"`
-	JumlahMontir uint                 `gorm:"type:int" json:"jumlah_montir"`
-	HomeService  *bool                `gorm:"type:bool" json:"home_service"`
-	StoreService *bool                `gorm:"type:bool" json:"store_service"`
-	IsOpen       *bool                `gorm:"type:bool" json:"is_open"`
-	AvatarUrl    string               `gorm:"type:varchar(500)" json:"avatar_url"`
-	Operasionals []BengkelOperasional `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"operasionals"`
-	Photos       []BengkelPhoto       `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"photos"`
-	Services     []BengkelService     `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"services"`
-	Addresses    []BengkelAddress     `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"addresses"`
-	Testimonies  []BengkelTestimoni   `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
-	CreatedAt    time.Time            `json:"created_at"`
-	UpdatedAt    time.Time            `json:"updated_at"`
+	JumlahMontir uint                   `gorm:"type:int" json:"jumlah_montir"`
+	HomeService  *bool                  `gorm:"type:bool" json:"home_service"`
+	StoreService *bool                  `gorm:"type:bool" json:"store_service"`
+	IsOpen       *bool                  `gorm:"type:bool" json:"is_open"`
+	AvatarUrl    string                 `gorm:"type:varchar(500)" json:"avatar_url"`
+	Operasionals []BengkelOperational   `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"operasionals"`
+	Photos       []BengkelPhoto         `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"photos"`
+	Services     []BengkelService       `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"services"`
+	Addresses    []BengkelAddress       `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"addresses"`
+	Testimonies  []BengkelTestimonial   `gorm:"foreignKey:BengkelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
+	CreatedAt    time.Time              `json:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at"`
 }

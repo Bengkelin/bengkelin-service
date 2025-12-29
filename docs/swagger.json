@@ -1,0 +1,750 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Bengkelin service API for connecting users with automotive repair shops (bengkels)\n\nThis API provides endpoints for:\n- User authentication and management\n- Bengkel (automotive repair shop) management\n- Order and service management\n- Chat functionality\n- Health monitoring and metrics\n\n## Authentication\nThis API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:\n`Authorization: Bearer \u003cyour-jwt-token\u003e`\n\n## Rate Limiting\nAPI endpoints are rate limited:\n- General endpoints: 100 requests per minute\n- Authentication endpoints: 10 requests per minute\n- Login/Register endpoints: 5 requests per minute\n\n## Error Handling\nThe API returns structured error responses with appropriate HTTP status codes.\nAll responses follow a consistent format with `status`, `message`, and optional `data` fields.",
+        "title": "Bengkelin API",
+        "contact": {
+            "name": "Bengkelin API Support",
+            "url": "https://bengkelin.com/support",
+            "email": "support@bengkelin.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/api/v1/mitras/auth/login": {
+            "post": {
+                "description": "Authenticate a mitra (bengkel owner) with email and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Mitra login",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/validator.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.AuthResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/auth/login": {
+            "post": {
+                "description": "Authenticate a user with email and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "User login",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/validator.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.AuthResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/auth/register": {
+            "post": {
+                "description": "Register a new user account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "User registration",
+                "parameters": [
+                    {
+                        "description": "Registration details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/validator.RegisterNewUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Registration successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.AuthResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "User already exists",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Get the health status of the application and its dependencies",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Health check endpoint",
+                "responses": {
+                    "200": {
+                        "description": "Health status",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.HealthStatus"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "503": {
+                        "description": "Service unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/live": {
+            "get": {
+                "description": "Check if the application is alive and responding",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Liveness check endpoint",
+                "responses": {
+                    "200": {
+                        "description": "Service alive",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.HealthStatus"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/metrics": {
+            "get": {
+                "description": "Get Prometheus-formatted metrics for monitoring",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Metrics"
+                ],
+                "summary": "Prometheus metrics endpoint",
+                "responses": {
+                    "200": {
+                        "description": "Prometheus metrics",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/metrics/app": {
+            "get": {
+                "description": "Get detailed application metrics in JSON format",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Metrics"
+                ],
+                "summary": "Application metrics endpoint",
+                "responses": {
+                    "200": {
+                        "description": "Application metrics",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ApplicationMetrics"
+                        }
+                    }
+                }
+            }
+        },
+        "/ready": {
+            "get": {
+                "description": "Check if the application is ready to serve requests",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Readiness check endpoint",
+                "responses": {
+                    "200": {
+                        "description": "Service ready",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.HealthStatus"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "503": {
+                        "description": "Service not ready",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.AuthResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "mitra": {
+                    "$ref": "#/definitions/dto.MitraInfo"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "token_type": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/dto.UserInfo"
+                }
+            }
+        },
+        "dto.MitraInfo": {
+            "type": "object",
+            "properties": {
+                "bank_name": {
+                    "type": "string"
+                },
+                "bank_number": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UserInfo": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.ApplicationMetrics": {
+            "type": "object",
+            "properties": {
+                "database": {
+                    "$ref": "#/definitions/handlers.DatabaseMetrics"
+                },
+                "environment": {
+                    "type": "string",
+                    "example": "production"
+                },
+                "http": {
+                    "$ref": "#/definitions/handlers.HTTPMetrics"
+                },
+                "redis": {
+                    "$ref": "#/definitions/handlers.RedisMetrics"
+                },
+                "system": {
+                    "$ref": "#/definitions/handlers.SystemMetrics"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "uptime": {
+                    "type": "string",
+                    "example": "1h30m45s"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "1.0.0"
+                }
+            }
+        },
+        "handlers.CheckResult": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "type": "string",
+                    "example": "5ms"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Connection successful"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "healthy"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                }
+            }
+        },
+        "handlers.DatabaseMetrics": {
+            "type": "object",
+            "properties": {
+                "idle_connections": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "in_use_connections": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "max_idle_time_closed": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "max_lifetime_closed": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "max_open_connections": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "open_connections": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "wait_count": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "wait_duration": {
+                    "type": "string",
+                    "example": "0s"
+                }
+            }
+        },
+        "handlers.HTTPMetrics": {
+            "type": "object",
+            "properties": {
+                "average_latency": {
+                    "type": "string",
+                    "example": "50ms"
+                },
+                "requests_by_status": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "total_requests": {
+                    "type": "integer",
+                    "example": 5000
+                }
+            }
+        },
+        "handlers.HealthStatus": {
+            "type": "object",
+            "properties": {
+                "checks": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/handlers.CheckResult"
+                    }
+                },
+                "environment": {
+                    "type": "string",
+                    "example": "production"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "healthy"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "uptime": {
+                    "type": "string",
+                    "example": "1h30m45s"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "1.0.0"
+                }
+            }
+        },
+        "handlers.RedisMetrics": {
+            "type": "object",
+            "properties": {
+                "hits": {
+                    "type": "integer",
+                    "example": 1000
+                },
+                "idle_conns": {
+                    "type": "integer",
+                    "example": 8
+                },
+                "min_idle_conns": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "misses": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "pool_size": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "stale_conns": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "total_conns": {
+                    "type": "integer",
+                    "example": 10
+                }
+            }
+        },
+        "handlers.SystemMetrics": {
+            "type": "object",
+            "properties": {
+                "cpu_count": {
+                    "type": "integer",
+                    "example": 4
+                },
+                "gc_runs": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "go_version": {
+                    "type": "string",
+                    "example": "go1.21.0"
+                },
+                "goroutines": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "memory_alloc_bytes": {
+                    "type": "integer",
+                    "example": 1048576
+                },
+                "memory_sys_bytes": {
+                    "type": "integer",
+                    "example": 4194304
+                },
+                "memory_total_bytes": {
+                    "type": "integer",
+                    "example": 2097152
+                }
+            }
+        },
+        "response.Response": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "errors": {},
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "validator.LoginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "minLength": 8
+                }
+            }
+        },
+        "validator.RegisterNewUserRequest": {
+            "type": "object",
+            "required": [
+                "confirm_password",
+                "email",
+                "first_name",
+                "last_name",
+                "password",
+                "phone_number"
+            ],
+            "properties": {
+                "confirm_password": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "minLength": 8
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 1
+                },
+                "last_name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 1
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "minLength": 8
+                },
+                "phone_number": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

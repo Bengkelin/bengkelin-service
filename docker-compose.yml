@@ -1,0 +1,154 @@
+version: '3.8'
+
+services:
+  # Main application service
+  bengkelin-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bengkelin-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Server Configuration
+      - SERVER_PORT=3000
+      - SERVER_SECRET=${SERVER_SECRET:-your-secret-key-here}
+      - SERVER_SECRET2=${SERVER_SECRET2:-your-secret-key2-here}
+      - SERVER_REFRESH_SECRET=${SERVER_REFRESH_SECRET:-your-refresh-secret-here}
+      - SERVER_REFRESH_SECRET2=${SERVER_REFRESH_SECRET2:-your-refresh-secret2-here}
+      - SERVER_MODE=${SERVER_MODE:-release}
+      - SERVER_NAME=bengkelin-api
+      - SERVER_EXPIRES_HOUR=${SERVER_EXPIRES_HOUR:-1}
+      - SERVER_REFRESH_EXPIRES_HOUR=${SERVER_REFRESH_EXPIRES_HOUR:-168}
+      - SERVER_HOST=0.0.0.0
+      - SERVER_DEV_MODE=false
+      
+      # Rate Limiting
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - RATE_LIMIT_GENERAL_RPS=${RATE_LIMIT_GENERAL_RPS:-1.67}
+      - RATE_LIMIT_GENERAL_BURST=${RATE_LIMIT_GENERAL_BURST:-10}
+      - RATE_LIMIT_AUTH_RPS=${RATE_LIMIT_AUTH_RPS:-0.17}
+      - RATE_LIMIT_AUTH_BURST=${RATE_LIMIT_AUTH_BURST:-5}
+      - RATE_LIMIT_STRICT_RPS=${RATE_LIMIT_STRICT_RPS:-0.083}
+      - RATE_LIMIT_STRICT_BURST=${RATE_LIMIT_STRICT_BURST:-2}
+      
+      # Database Configuration
+      - DATABASE_DRIVER=${DATABASE_DRIVER:-mysql}
+      - DATABASE_NAME=${DATABASE_NAME:-bengkelin_db}
+      - DATABASE_USERNAME=${DATABASE_USERNAME:-bengkelin_user}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-bengkelin_password}
+      - DATABASE_HOST=db
+      - DATABASE_PORT=${DATABASE_PORT:-3306}
+      - DATABASE_MAX_LIFETIME=${DATABASE_MAX_LIFETIME:-7200}
+      - DATABASE_MAX_OPEN_CONNS=${DATABASE_MAX_OPEN_CONNS:-150}
+      - DATABASE_MAX_IDLE_CONNS=${DATABASE_MAX_IDLE_CONNS:-50}
+      - BCRYPT_COST=${BCRYPT_COST:-12}
+      
+      # Logging Configuration
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_OUTPUT_PATH=${LOG_OUTPUT_PATH:-}
+      - LOG_ERROR_PATH=${LOG_ERROR_PATH:-}
+      - APP_VERSION=${APP_VERSION:-1.0.0}
+    volumes:
+      - ./public:/public:ro
+      - app_logs:/var/log/bengkelin
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - bengkelin-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: bengkelin-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root_password}
+      - MYSQL_DATABASE=${DATABASE_NAME:-bengkelin_db}
+      - MYSQL_USER=${DATABASE_USERNAME:-bengkelin_user}
+      - MYSQL_PASSWORD=${DATABASE_PASSWORD:-bengkelin_password}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "3306:3306"
+    networks:
+      - bengkelin-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_password}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M
+      --max-connections=200
+
+  # Redis for caching and rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: bengkelin-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - bengkelin-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+  # Nginx reverse proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: bengkelin-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - bengkelin-api
+    networks:
+      - bengkelin-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  db_data:
+    driver: local
+  redis_data:
+    driver: local
+  app_logs:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  bengkelin-network:
+    driver: bridge
