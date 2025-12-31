@@ -70,6 +70,9 @@ func Setup() *gin.Engine {
 	// Add security headers
 	app.Use(middleware.SecurityHeadersMiddleware())
 	
+	// CORS middleware
+	app.Use(middleware.CORS())
+	
 	// Apply general rate limiting to all routes if enabled
 	if conf.RateLimit.Enabled && generalLimiter != nil {
 		app.Use(pkgMiddleware.RateLimitMiddleware(generalLimiter))
@@ -154,7 +157,10 @@ func Setup() *gin.Engine {
 		userGroup.GET("profile", middleware.AuthJWT(), userHandler.GetProfile)
 		userGroup.PATCH("profile", middleware.AuthJWT(), userHandler.UpdateProfile)
 		userGroup.PATCH("avatar", middleware.AuthJWT(), userHandler.UpdateAvatarUser)
+		userGroup.POST("address", middleware.AuthJWT(), userHandler.CreateAddress)
 		userGroup.GET("address/:addressId", middleware.AuthJWT(), userHandler.GetDetailAddressUser)
+		userGroup.PATCH("address/:addressId", middleware.AuthJWT(), userHandler.UpdateAddress)
+		userGroup.PATCH("address", middleware.AuthJWT(), userHandler.UpdateOrCreateAddress)
 		userGroup.DELETE("address/:addressId", middleware.AuthJWT(), userHandler.DeleteAddressUser)
 		userGroup.GET("vehicle/:vehicleId", middleware.AuthJWT(), userHandler.GetDetailVehicleUser)
 		userGroup.DELETE("vehicle/:vehicleId", middleware.AuthJWT(), userHandler.DeleteVehicleUser)

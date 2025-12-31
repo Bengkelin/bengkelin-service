@@ -8,7 +8,6 @@ type OrderService struct {
 	Title     string    `gorm:"type:varchar(255)" json:"title"`
 	Detail    string    `gorm:"type:varchar(255)" json:"detail"`
 	Price     float64   `gorm:"type:float" json:"price"`
-	Order     Order     `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

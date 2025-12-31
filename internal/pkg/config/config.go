@@ -22,6 +22,7 @@ type Configuration struct {
 	Supabase      SupabaseConfiguration
 	Agore         AgoreConfiguration
 	RateLimit     RateLimitConfiguration
+	Redis         RedisConfiguration
 }
 
 // Struct of App Configuration instance
@@ -113,6 +114,16 @@ type RateLimitConfiguration struct {
 	Enabled       bool    `mapstructure:"RATE_LIMIT_ENABLED"`
 }
 
+// Struct for Redis Configuration
+type RedisConfiguration struct {
+	URL      string `mapstructure:"REDIS_URL"`      // Full Redis URL (redis://user:pass@host:port/db)
+	Host     string `mapstructure:"REDIS_HOST"`     // Individual host (fallback)
+	Port     string `mapstructure:"REDIS_PORT"`     // Individual port (fallback)
+	Password string `mapstructure:"REDIS_PASSWORD"` // Individual password (fallback)
+	DB       int    `mapstructure:"REDIS_DB"`       // Individual DB (fallback)
+	Enabled  bool   `mapstructure:"REDIS_ENABLED"`
+}
+
 type AgoreConfiguration struct {
 	AppID          string `mapstructure:"AGORA_APP_ID"`
 	AppCertificate string `mapstructure:"AGORA_APP_CERTIFICATE"`
@@ -133,6 +144,7 @@ func Setup(configPath string) {
 		supabaseConfiguration     SupabaseConfiguration
 		agoreConfiguration        AgoreConfiguration
 		rateLimitConfiguration    RateLimitConfiguration
+		redisConfiguration        RedisConfiguration
 	)
 
 	viper.SetConfigFile(configPath)
@@ -153,6 +165,7 @@ func Setup(configPath string) {
 	unmarshalConfiguration(&supabaseConfiguration)
 	unmarshalConfiguration(&agoreConfiguration)
 	unmarshalConfiguration(&rateLimitConfiguration)
+	unmarshalConfiguration(&redisConfiguration)
 
 	// Set default values for app configuration if not set
 	if appConfiguration.Name == "" {
@@ -164,6 +177,19 @@ func Setup(configPath string) {
 	if appConfiguration.Environment == "" {
 		appConfiguration.Environment = "development"
 	}
+
+	// Set default values for Redis configuration if not set
+	if redisConfiguration.Host == "" {
+		redisConfiguration.Host = "localhost"
+	}
+	if redisConfiguration.Port == "" {
+		redisConfiguration.Port = "6379"
+	}
+	if redisConfiguration.DB == 0 {
+		redisConfiguration.DB = 0
+	}
+	// Redis is enabled by default
+	redisConfiguration.Enabled = true
 
 	// Set default values for rate limiting if not configured
 	if rateLimitConfiguration.GeneralRPS == 0 {
@@ -199,6 +225,7 @@ func Setup(configPath string) {
 		Supabase:      supabaseConfiguration,
 		Agore:         agoreConfiguration,
 		RateLimit:     rateLimitConfiguration,
+		Redis:         redisConfiguration,
 	}
 
 	Config = &configuration

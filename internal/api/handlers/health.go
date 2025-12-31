@@ -146,8 +146,8 @@ func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 	redisCheck := h.checkRedis(ctx)
 	status.Checks["redis"] = redisCheck
 	
-	// Readiness requires all critical services to be healthy
-	ready := dbCheck.Status == "healthy" && redisCheck.Status == "healthy"
+	// Readiness requires all critical services to be healthy or disabled
+	ready := dbCheck.Status == "healthy" && (redisCheck.Status == "healthy" || redisCheck.Status == "disabled")
 	
 	if !ready {
 		status.Status = "not_ready"
@@ -258,6 +258,17 @@ func (h *HealthHandler) checkDatabase(ctx context.Context) CheckResult {
 func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 	start := time.Now()
 	
+	// Check if Redis is enabled in configuration
+	conf := config.GetConfig()
+	if !conf.Redis.Enabled {
+		return CheckResult{
+			Status:    "disabled",
+			Message:   "Redis is disabled in configuration",
+			Duration:  time.Since(start).String(),
+			Timestamp: time.Now(),
+		}
+	}
+	
 	redisCache := redisClient.GetRedisClient()
 	if redisCache == nil {
 		return CheckResult{
@@ -272,8 +283,11 @@ func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 	testKey := "health_check_test"
 	testValue := "ok"
 	
-	// Test set operation
-	if err := redisCache.Set(testKey, testValue, time.Minute); err != nil {
+	// Test set operation with shorter timeout for health check
+	testCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	
+	if err := redisCache.SetWithContext(testCtx, testKey, testValue, time.Minute); err != nil {
 		return CheckResult{
 			Status:    "unhealthy",
 			Message:   "Redis set operation failed: " + err.Error(),
@@ -284,7 +298,7 @@ func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 	
 	// Test get operation
 	var result string
-	if err := redisCache.Get(testKey, &result); err != nil {
+	if err := redisCache.GetWithContext(testCtx, testKey, &result); err != nil {
 		return CheckResult{
 			Status:    "unhealthy",
 			Message:   "Redis get operation failed: " + err.Error(),
@@ -294,7 +308,7 @@ func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 	}
 	
 	// Clean up test key
-	redisCache.Delete(testKey)
+	redisCache.DeleteWithContext(testCtx, testKey)
 	
 	if result != testValue {
 		return CheckResult{

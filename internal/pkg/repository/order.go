@@ -56,7 +56,7 @@ func (*OrderRepository) GetAllOrderUserPaginate(userId string, page, limit int) 
 		return nil, 0, err
 	}
 
-	err = db.GetDB().Preload("OrderService").Preload("User").Preload("Bengkel").Preload("Bengkel.Addresses").Preload("Vehicle").Where("user_id = ?", userId).Offset((page - 1) * limit).Limit(limit).Find(&Orders).Error
+	err = db.GetDB().Preload("OrderServices").Preload("User").Preload("Bengkel").Preload("Bengkel.Addresses").Preload("Vehicle").Where("user_id = ?", userId).Offset((page - 1) * limit).Limit(limit).Find(&Orders).Error
 
 	if err != nil {
 		return nil, 0, err
@@ -76,7 +76,7 @@ func (*OrderRepository) GetAllOrderMitraPaginate(bengkelId string, page, limit i
 		return nil, 0, err
 	}
 
-	err = db.GetDB().Preload("OrderService").Preload("User").Preload("Bengkel").Preload("Bengkel.Addresses").Preload("Vehicle").Where("bengkel_id = ?", bengkelId).Offset((page - 1) * limit).Limit(limit).Find(&Orders).Error
+	err = db.GetDB().Preload("OrderServices").Preload("User").Preload("Bengkel").Preload("Bengkel.Addresses").Preload("Vehicle").Where("bengkel_id = ?", bengkelId).Offset((page - 1) * limit).Limit(limit).Find(&Orders).Error
 
 	if err != nil {
 		return nil, 0, err
@@ -90,7 +90,7 @@ func (*OrderRepository) GetOrderById(OrderId string) (*models.Order, error) {
 	var Order models.Order
 	where := models.Order{}
 	where.ID = OrderId
-	_, err := First(where, &Order, []string{"OrderService", "User", "Bengkel", "Bengkel.Addresses", "Vehicle"})
+	_, err := First(where, &Order, []string{"OrderServices", "User", "Bengkel", "Bengkel.Addresses", "Vehicle"})
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (*OrderRepository) GetDetailOrderById(OrderId, userId string) (*models.Orde
 	var Order models.Order
 	err := db.GetDB().
 		Model(&models.Order{}).
-		Preload("OrderService").
+		Preload("OrderServices").
 		Preload("User").
 		Preload("Bengkel").
 		Preload("Bengkel.Addresses").

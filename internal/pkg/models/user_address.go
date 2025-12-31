@@ -7,6 +7,7 @@ type UserAddress struct {
 	AddressLabel string  `json:"address_label"`
 	FullAddress  string  `json:"full_address"`
 	Note         string  `json:"note"`
+	IsPrimary    *bool   `gorm:"type:bool;default:false" json:"is_primary"`
 	UserID       string  `gorm:"type:varchar(36);index" json:"user_id"`
 	User         User    `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 }

@@ -242,7 +242,7 @@ func TestAuthHandlerIntegration(t *testing.T) {
 	mockService := &MockAuthService{}
 	
 	// Create handler with mock service
-	handler := &handlers.AuthHandler{}
+	// handler := &handlers.AuthHandler{}
 	// Note: In real implementation, we'd inject the mock service
 	
 	t.Run("Successful Login", func(t *testing.T) {

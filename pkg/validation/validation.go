@@ -17,7 +17,6 @@ var (
 	
 	// Common regex patterns
 	phoneRegex     = regexp.MustCompile(`^(\+62|62|0)[0-9]{9,13}$`)
-	strongPassword = regexp.MustCompile(`^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]`)
 	alphaNumeric   = regexp.MustCompile(`^[a-zA-Z0-9\s]+$`)
 	noScript       = regexp.MustCompile(`(?i)<script[^>]*>.*?</script>`)
 	sqlInjection   = regexp.MustCompile(`(?i)(union|select|insert|update|delete|drop|create|alter|exec|execute)`)
@@ -125,6 +124,7 @@ func validatePhone(fl validator.FieldLevel) bool {
 
 func validateStrongPassword(fl validator.FieldLevel) bool {
 	password := fl.Field().String()
+	
 	if len(password) < 8 {
 		return false
 	}
@@ -304,17 +304,24 @@ func SanitizeInput(input string) string {
 	// Remove script tags
 	input = noScript.ReplaceAllString(input, "")
 	
-	// Remove javascript: protocol
-	input = strings.ReplaceAll(input, "javascript:", "")
+	// Remove javascript: protocol (case-insensitive)
+	jsRegex := regexp.MustCompile(`(?i)javascript:`)
+	input = jsRegex.ReplaceAllString(input, "")
 	
-	// Remove common XSS patterns
+	// Remove common XSS patterns (case-insensitive)
 	xssPatterns := []string{
-		"<script", "</script>", "onclick=", "onload=", "onerror=",
-		"javascript:", "vbscript:", "data:text/html",
+		`(?i)<script`,
+		`(?i)</script>`,
+		`(?i)onclick=`,
+		`(?i)onload=`,
+		`(?i)onerror=`,
+		`(?i)vbscript:`,
+		`(?i)data:text/html`,
 	}
 	
 	for _, pattern := range xssPatterns {
-		input = strings.ReplaceAll(strings.ToLower(input), pattern, "")
+		regex := regexp.MustCompile(pattern)
+		input = regex.ReplaceAllString(input, "")
 	}
 	
 	// Trim whitespace
