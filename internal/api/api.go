@@ -4,6 +4,7 @@ import (
 	v1 "github.com/Bengkelin/bengkelin-service/internal/api/router/v1"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
+	redisClient "github.com/Bengkelin/bengkelin-service/internal/pkg/redis"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
 	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,23 @@ func SetConfiguration(configPath string) {
 	// Calling setup db
 	db.SetupDB()
 	applog.Info("Database setup completed")
+
+	// Setup Redis connection
+	conf := config.GetConfig()
+	if conf.Redis.Enabled {
+		if conf.Redis.URL != "" {
+			// Use Redis URL format (redis://user:pass@host:port/db)
+			redisClient.SetupRedisFromURL(conf.Redis.URL)
+			applog.Info("Redis setup completed using URL", "url", conf.Redis.URL)
+		} else {
+			// Use individual parameters
+			redisAddr := conf.Redis.Host + ":" + conf.Redis.Port
+			redisClient.SetupRedis(redisAddr, conf.Redis.Password, conf.Redis.DB)
+			applog.Info("Redis setup completed", "host", conf.Redis.Host, "port", conf.Redis.Port, "db", conf.Redis.DB)
+		}
+	} else {
+		applog.Info("Redis is disabled")
+	}
 
 	// Start cleanup service for expired refresh tokens
 	cleanupService := service.GetCleanupService()
