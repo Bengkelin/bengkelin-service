@@ -50,9 +50,9 @@ type AddressUserRequest struct {
 }
 
 type VehicleUserRequest struct {
-	VehicleType   string `form:"vehicle_type" binding:"required,min=1,max=50" validate:"alpha_numeric_space,no_xss"`
-	VehicleColor  string `form:"vehicle_color" binding:"required,min=1,max=30" validate:"alpha_numeric_space,no_xss"`
-	VehicleNumber string `form:"vehicle_number" binding:"required" validate:"vehicle_number"`
+	VehicleType   string `json:"vehicle_type" form:"vehicle_type" binding:"required,min=1,max=50" validate:"alpha_numeric_space,no_xss"`
+	VehicleColor  string `json:"vehicle_color" form:"vehicle_color" binding:"required,min=1,max=30" validate:"alpha_numeric_space,no_xss"`
+	VehicleNumber string `json:"vehicle_number" form:"vehicle_number" binding:"required" validate:"vehicle_number"`
 }
 
 // RefreshTokenRequest for token refresh validation

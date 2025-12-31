@@ -91,3 +91,7 @@ func (r *RedisCache) Delete(key string) error {
 func (r *RedisCache) DeleteWithContext(ctx context.Context, key string) error {
     return r.client.Del(ctx, key).Err()
 }
+// GetClient returns the underlying Redis client for advanced operations
+func (r *RedisCache) GetClient() *redis.Client {
+	return r.client
+}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/spf13/viper"
@@ -23,6 +24,7 @@ type Configuration struct {
 	Agore         AgoreConfiguration
 	RateLimit     RateLimitConfiguration
 	Redis         RedisConfiguration
+	RabbitMQ      RabbitMQConfiguration
 }
 
 // Struct of App Configuration instance
@@ -130,6 +132,17 @@ type AgoreConfiguration struct {
 	ExpiryTime     string `mapstructure:"AGORA_EXPIRY_TIME"`
 }
 
+// Struct for RabbitMQ Configuration
+type RabbitMQConfiguration struct {
+	URL      string `mapstructure:"RABBITMQ_URL"`      // Full RabbitMQ URL (amqp://user:pass@host:port/vhost)
+	Host     string `mapstructure:"RABBITMQ_HOST"`     // Individual host (fallback)
+	Port     string `mapstructure:"RABBITMQ_PORT"`     // Individual port (fallback)
+	Username string `mapstructure:"RABBITMQ_USERNAME"` // Individual username (fallback)
+	Password string `mapstructure:"RABBITMQ_PASSWORD"` // Individual password (fallback)
+	VHost    string `mapstructure:"RABBITMQ_VHOST"`    // Virtual host (fallback)
+	Enabled  bool   `mapstructure:"RABBITMQ_ENABLED"`
+}
+
 // Setup the configuration
 func Setup(configPath string) {
 	var (
@@ -145,6 +158,7 @@ func Setup(configPath string) {
 		agoreConfiguration        AgoreConfiguration
 		rateLimitConfiguration    RateLimitConfiguration
 		redisConfiguration        RedisConfiguration
+		rabbitMQConfiguration     RabbitMQConfiguration
 	)
 
 	viper.SetConfigFile(configPath)
@@ -166,6 +180,7 @@ func Setup(configPath string) {
 	unmarshalConfiguration(&agoreConfiguration)
 	unmarshalConfiguration(&rateLimitConfiguration)
 	unmarshalConfiguration(&redisConfiguration)
+	unmarshalConfiguration(&rabbitMQConfiguration)
 
 	// Set default values for app configuration if not set
 	if appConfiguration.Name == "" {
@@ -190,6 +205,35 @@ func Setup(configPath string) {
 	}
 	// Redis is enabled by default
 	redisConfiguration.Enabled = true
+
+	// Set default values for RabbitMQ configuration if not set
+	if rabbitMQConfiguration.Host == "" {
+		rabbitMQConfiguration.Host = "localhost"
+	}
+	if rabbitMQConfiguration.Port == "" {
+		rabbitMQConfiguration.Port = "5672"
+	}
+	if rabbitMQConfiguration.Username == "" {
+		rabbitMQConfiguration.Username = "guest"
+	}
+	if rabbitMQConfiguration.Password == "" {
+		rabbitMQConfiguration.Password = "guest"
+	}
+	if rabbitMQConfiguration.VHost == "" {
+		rabbitMQConfiguration.VHost = "/"
+	}
+	// Build URL if not provided
+	if rabbitMQConfiguration.URL == "" {
+		rabbitMQConfiguration.URL = fmt.Sprintf("amqp://%s:%s@%s:%s%s",
+			rabbitMQConfiguration.Username,
+			rabbitMQConfiguration.Password,
+			rabbitMQConfiguration.Host,
+			rabbitMQConfiguration.Port,
+			rabbitMQConfiguration.VHost,
+		)
+	}
+	// RabbitMQ is enabled by default
+	rabbitMQConfiguration.Enabled = true
 
 	// Set default values for rate limiting if not configured
 	if rateLimitConfiguration.GeneralRPS == 0 {
@@ -226,6 +270,7 @@ func Setup(configPath string) {
 		Agore:         agoreConfiguration,
 		RateLimit:     rateLimitConfiguration,
 		Redis:         redisConfiguration,
+		RabbitMQ:      rabbitMQConfiguration,
 	}
 
 	Config = &configuration

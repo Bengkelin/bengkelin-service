@@ -389,3 +389,36 @@ func (helper *jwtCryptoHelper) GetMitraIDFromToken(tokenString string) (string, 
 	
 	return claims.MitraID, nil
 }
+
+// CombinedClaims represents claims that can be either user or mitra
+type CombinedClaims struct {
+	UserID  string `json:"user_id,omitempty"`
+	MitraID string `json:"mitra_id,omitempty"`
+}
+
+// ValidateJWT validates JWT token for both users and mitras
+func ValidateJWT(tokenString string) (*CombinedClaims, error) {
+	helper := GetJWTCrypto()
+	
+	// Try to validate as user token first
+	userToken, err := helper.ValidateToken(tokenString)
+	if err == nil {
+		if claims, ok := userToken.Claims.(*jwtCustomClaim); ok && userToken.Valid {
+			return &CombinedClaims{
+				UserID: claims.UserID,
+			}, nil
+		}
+	}
+	
+	// Try to validate as mitra token
+	mitraToken, err := helper.ValidateTokenMitra(tokenString)
+	if err == nil {
+		if claims, ok := mitraToken.Claims.(*jwtCustomClaimMitra); ok && mitraToken.Valid {
+			return &CombinedClaims{
+				MitraID: claims.MitraID,
+			}, nil
+		}
+	}
+	
+	return nil, fmt.Errorf("invalid token")
+}

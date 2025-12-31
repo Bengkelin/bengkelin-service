@@ -13,6 +13,7 @@ type VehicleRepositoryInterface interface {
 	CreateVehicle(vehicle models.Vehicle) (models.Vehicle, error)
 	UpdateVehicleById(vehicleId uint, userId string, vehicle *models.Vehicle) error
 	GetVehicleById(userId string, vehicleId uint) (*models.Vehicle, error)
+	GetAllVehiclesByUserId(userId string) ([]models.Vehicle, error)
 	DeleteVehicleById(vehicleId uint, userId string) error
 }
 
@@ -56,6 +57,16 @@ func (*VehicleRepository) GetVehicleById(userId string, vehicleId uint) (*models
 		return nil, err
 	}
 	return &vehicle, nil
+}
+
+// GetAllVehiclesByUserId implements VehicleRepositoryInterface.
+func (*VehicleRepository) GetAllVehiclesByUserId(userId string) ([]models.Vehicle, error) {
+	var vehicles []models.Vehicle
+	err := db.GetDB().Where("user_id = ?", userId).Preload("Photos").Find(&vehicles).Error
+	if err != nil {
+		return nil, err
+	}
+	return vehicles, nil
 }
 
 // DeleteVehicleById implements VehicleRepositoryInterface.

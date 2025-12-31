@@ -55,6 +55,7 @@ func Setup() *gin.Engine {
 
 	// Global middlewares
 	app.Use(gin.Recovery())
+	app.Use(gin.Logger()) // Add colorful Gin logger
 	
 	// Enhanced logging middlewares
 	app.Use(middleware.RequestIDMiddleware())
@@ -162,6 +163,8 @@ func Setup() *gin.Engine {
 		userGroup.PATCH("address/:addressId", middleware.AuthJWT(), userHandler.UpdateAddress)
 		userGroup.PATCH("address", middleware.AuthJWT(), userHandler.UpdateOrCreateAddress)
 		userGroup.DELETE("address/:addressId", middleware.AuthJWT(), userHandler.DeleteAddressUser)
+		userGroup.POST("vehicle", middleware.AuthJWT(), userHandler.CreateVehicle)
+		userGroup.GET("vehicle", middleware.AuthJWT(), userHandler.GetAllVehiclesUser)
 		userGroup.GET("vehicle/:vehicleId", middleware.AuthJWT(), userHandler.GetDetailVehicleUser)
 		userGroup.DELETE("vehicle/:vehicleId", middleware.AuthJWT(), userHandler.DeleteVehicleUser)
 	}

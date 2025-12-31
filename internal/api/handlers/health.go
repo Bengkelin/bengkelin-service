@@ -8,6 +8,7 @@ import (
 
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/rabbitmq"
 	redisClient "github.com/Bengkelin/bengkelin-service/internal/pkg/redis"
 	"github.com/Bengkelin/bengkelin-service/pkg/response"
 	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
@@ -85,6 +86,10 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 	redisCheck := h.checkRedis(ctx)
 	status.Checks["redis"] = redisCheck
 	
+	// Check RabbitMQ connectivity
+	rabbitmqCheck := h.checkRabbitMQ(ctx)
+	status.Checks["rabbitmq"] = rabbitmqCheck
+	
 	// Check system resources
 	systemCheck := h.checkSystem(ctx)
 	status.Checks["system"] = systemCheck
@@ -146,8 +151,13 @@ func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 	redisCheck := h.checkRedis(ctx)
 	status.Checks["redis"] = redisCheck
 	
+	rabbitmqCheck := h.checkRabbitMQ(ctx)
+	status.Checks["rabbitmq"] = rabbitmqCheck
+	
 	// Readiness requires all critical services to be healthy or disabled
-	ready := dbCheck.Status == "healthy" && (redisCheck.Status == "healthy" || redisCheck.Status == "disabled")
+	ready := dbCheck.Status == "healthy" && 
+		(redisCheck.Status == "healthy" || redisCheck.Status == "disabled") &&
+		(rabbitmqCheck.Status == "healthy" || rabbitmqCheck.Status == "disabled")
 	
 	if !ready {
 		status.Status = "not_ready"
@@ -322,6 +332,50 @@ func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 	return CheckResult{
 		Status:    "healthy",
 		Message:   "Redis connection successful",
+		Duration:  time.Since(start).String(),
+		Timestamp: time.Now(),
+	}
+}
+
+// checkRabbitMQ checks RabbitMQ connectivity
+func (h *HealthHandler) checkRabbitMQ(ctx context.Context) CheckResult {
+	start := time.Now()
+	
+	// Check if RabbitMQ is enabled in configuration
+	conf := config.GetConfig()
+	if !conf.RabbitMQ.Enabled {
+		return CheckResult{
+			Status:    "disabled",
+			Message:   "RabbitMQ is disabled in configuration",
+			Duration:  time.Since(start).String(),
+			Timestamp: time.Now(),
+		}
+	}
+	
+	// Get RabbitMQ instance
+	rabbitMQInstance := rabbitmq.GetInstance()
+	if rabbitMQInstance == nil {
+		return CheckResult{
+			Status:    "unhealthy",
+			Message:   "RabbitMQ instance not initialized",
+			Duration:  time.Since(start).String(),
+			Timestamp: time.Now(),
+		}
+	}
+	
+	// Check if RabbitMQ is healthy
+	if !rabbitMQInstance.IsHealthy() {
+		return CheckResult{
+			Status:    "unhealthy",
+			Message:   "RabbitMQ connection is not healthy",
+			Duration:  time.Since(start).String(),
+			Timestamp: time.Now(),
+		}
+	}
+	
+	return CheckResult{
+		Status:    "healthy",
+		Message:   "RabbitMQ connection successful",
 		Duration:  time.Since(start).String(),
 		Timestamp: time.Now(),
 	}

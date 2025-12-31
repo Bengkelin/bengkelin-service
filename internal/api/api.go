@@ -2,8 +2,10 @@ package api
 
 import (
 	v1 "github.com/Bengkelin/bengkelin-service/internal/api/router/v1"
+	v2 "github.com/Bengkelin/bengkelin-service/internal/api/router/v2"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/rabbitmq"
 	redisClient "github.com/Bengkelin/bengkelin-service/internal/pkg/redis"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
 	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
@@ -48,6 +50,45 @@ func SetConfiguration(configPath string) {
 	cleanupService.StartPeriodicCleanup()
 	applog.Info("Cleanup service started")
 
+	// Setup RabbitMQ connection
+	if conf.RabbitMQ.Enabled {
+		err := rabbitmq.Setup()
+		if err != nil {
+			applog.LogError(err, "Failed to setup RabbitMQ")
+		} else {
+			applog.Info("RabbitMQ setup completed")
+			
+			// Start message consumers
+			go func() {
+				if err := service.StartNotificationConsumers(); err != nil {
+					applog.LogError(err, "Failed to start notification consumers")
+				}
+			}()
+			
+			go func() {
+				if err := service.StartOrderProcessingConsumers(); err != nil {
+					applog.LogError(err, "Failed to start order processing consumers")
+				}
+			}()
+			
+			go func() {
+				if err := service.StartFileProcessingConsumers(); err != nil {
+					applog.LogError(err, "Failed to start file processing consumers")
+				}
+			}()
+			
+			go func() {
+				if err := service.StartAuditConsumers(); err != nil {
+					applog.LogError(err, "Failed to start audit consumers")
+				}
+			}()
+			
+			applog.Info("All RabbitMQ consumers started successfully")
+		}
+	} else {
+		applog.Info("RabbitMQ is disabled")
+	}
+
 	gin.SetMode(config.GetConfig().Server.Mode)
 	applog.Debug("Gin mode set", "mode", config.GetConfig().Server.Mode)
 }
@@ -62,6 +103,10 @@ func Run(configPath string) {
 
 	// Routing
 	web := v1.Setup()
+	
+	// Setup V2 routes
+	v2.SetupV2Routes(web)
+	
 	applog.Info("Starting API server", "port", conf.Server.Port, "mode", conf.Server.Mode)
 	applog.Info("==================>")
 	_ = web.Run(":" + conf.Server.Port)

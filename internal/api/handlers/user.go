@@ -14,6 +14,7 @@ import (
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
 	"github.com/Bengkelin/bengkelin-service/pkg/response"
+	"github.com/Bengkelin/bengkelin-service/pkg/validation"
 	"github.com/gin-gonic/gin"
 )
 
@@ -39,6 +40,8 @@ type UserHandlerInterface interface {
 	UpdateAvatarUser(c *gin.Context)
 	GetDetailAddressUser(c *gin.Context)
 	DeleteAddressUser(c *gin.Context)
+	CreateVehicle(c *gin.Context)
+	GetAllVehiclesUser(c *gin.Context)
 	GetDetailVehicleUser(c *gin.Context)
 	DeleteVehicleUser(c *gin.Context)
 }
@@ -488,7 +491,13 @@ func (handler *UserHandler) UpdateAvatarUser(c *gin.Context) {
 		reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
 	}
 
-	urlPicture := fmt.Sprintf("https://%s/api/v1/static/avatar/%s", reqHost, fileName)
+	// Determine protocol from request
+	protocol := "http"
+	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+		protocol = "https"
+	}
+
+	urlPicture := fmt.Sprintf("%s://%s/api/v1/static/avatar/%s", protocol, reqHost, fileName)
 
 	userModel := &models.User{
 		AvatarUrl: urlPicture,
@@ -631,4 +640,59 @@ func (handler *UserHandler) GetDetailVehicleUser(c *gin.Context) {
 
 	response := response.BuildSuccessResponse("success get vehicle", vehicle)
 	c.JSON(http.StatusOK, response)
+}
+
+func (handler *UserHandler) GetAllVehiclesUser(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+	
+	vehicleRepo := repository.GetVehicleRepository()
+	
+	vehicles, err := vehicleRepo.GetAllVehiclesByUserId(userId)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to get vehicles", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+	
+	response := response.BuildSuccessResponse("success get all vehicles", vehicles)
+	c.JSON(http.StatusOK, response)
+}
+
+func (handler *UserHandler) CreateVehicle(c *gin.Context) {
+	userId := c.MustGet("id").(string)
+	
+	var vehicleRequest validator.VehicleUserRequest
+	err := c.ShouldBind(&vehicleRequest)
+	if err != nil {
+		response := response.BuildFailedResponse("request doesn't match with validator", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+	
+	// Validate the request using custom validation
+	if validationErrors := validation.ValidateStruct(vehicleRequest); validationErrors != nil {
+		response := response.BuildFailedResponse("validation failed", validationErrors.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+	
+	vehicleRepo := repository.GetVehicleRepository()
+	
+	// Create vehicle model
+	vehicle := models.Vehicle{
+		VehicleType:   vehicleRequest.VehicleType,
+		VehicleNumber: vehicleRequest.VehicleNumber,
+		VehicleColor:  vehicleRequest.VehicleColor,
+		UserID:        userId,
+	}
+	
+	createdVehicle, err := vehicleRepo.CreateVehicle(vehicle)
+	if err != nil {
+		response := response.BuildFailedResponse("failed to create vehicle", err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, response)
+		return
+	}
+	
+	response := response.BuildSuccessResponse("success create vehicle", createdVehicle)
+	c.JSON(http.StatusCreated, response)
 }

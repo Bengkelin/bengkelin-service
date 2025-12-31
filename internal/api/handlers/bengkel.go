@@ -367,7 +367,13 @@ func (handler *BengkelHandler) CreateBengkelPhoto(c *gin.Context) {
 			reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
 		}
 
-		urlPicture := fmt.Sprintf("https://%s/api/v1/static/bengkel/%s", reqHost, fileName)
+		// Determine protocol from request
+		protocol := "http"
+		if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+			protocol = "https"
+		}
+
+		urlPicture := fmt.Sprintf("%s://%s/api/v1/static/bengkel/%s", protocol, reqHost, fileName)
 		urlPictures = append(urlPictures, urlPicture)
 	}
 
@@ -843,7 +849,13 @@ func (handler *BengkelHandler) UpdateAvatarBengkel(c *gin.Context) {
 		reqHost = serverConfiguration.Host + ":" + serverConfiguration.Port
 	}
 
-	urlPicture := fmt.Sprintf("https://%s/api/v1/static/avatar/%s", reqHost, fileName)
+	// Determine protocol from request
+	protocol := "http"
+	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+		protocol = "https"
+	}
+
+	urlPicture := fmt.Sprintf("%s://%s/api/v1/static/avatar/%s", protocol, reqHost, fileName)
 
 	bengkelModel := &models.Bengkel{
 		AvatarUrl: urlPicture,

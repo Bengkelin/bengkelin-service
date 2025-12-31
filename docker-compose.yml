@@ -45,6 +45,21 @@ services:
       - DATABASE_MAX_IDLE_CONNS=${DATABASE_MAX_IDLE_CONNS:-50}
       - BCRYPT_COST=${BCRYPT_COST:-12}
       
+      # Redis Configuration
+      - REDIS_ENABLED=${REDIS_ENABLED:-true}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_DB=${REDIS_DB:-0}
+      
+      # RabbitMQ Configuration
+      - RABBITMQ_ENABLED=${RABBITMQ_ENABLED:-true}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - RABBITMQ_VHOST=${RABBITMQ_VHOST:-/}
+      
       # Logging Configuration
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - LOG_OUTPUT_PATH=${LOG_OUTPUT_PATH:-}
@@ -57,6 +72,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - bengkelin-network
@@ -117,6 +134,30 @@ services:
       start_period: 30s
     command: redis-server /usr/local/etc/redis/redis.conf
 
+  # RabbitMQ for message queuing
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: bengkelin-rabbitmq
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
+      - RABBITMQ_DEFAULT_VHOST=${RABBITMQ_VHOST:-/}
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI port
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_logs:/var/log/rabbitmq
+    networks:
+      - bengkelin-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
   # Nginx reverse proxy (optional)
   nginx:
     image: nginx:alpine
@@ -143,6 +184,10 @@ volumes:
   db_data:
     driver: local
   redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  rabbitmq_logs:
     driver: local
   app_logs:
     driver: local
