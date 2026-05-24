@@ -49,6 +49,9 @@ func SetupRedisFromURL(redisURL string) {
 }
 
 func GetRedisClient() *RedisCache {
+    if redisClient == nil {
+        return nil
+    }
     return &RedisCache{client: redisClient}
 }
 
@@ -94,4 +97,17 @@ func (r *RedisCache) DeleteWithContext(ctx context.Context, key string) error {
 // GetClient returns the underlying Redis client for advanced operations
 func (r *RedisCache) GetClient() *redis.Client {
 	return r.client
+}
+
+// IsConnected checks if Redis connection is working
+func (r *RedisCache) IsConnected() bool {
+	if r.client == nil {
+		return false
+	}
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	
+	_, err := r.client.Ping(ctx).Result()
+	return err == nil
 }

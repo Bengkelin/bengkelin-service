@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
@@ -21,7 +20,7 @@ type ChatV2RepositoryInterface interface {
 	// Chat Message operations
 	CreateMessage(ctx context.Context, message *models.ChatMessage) error
 	GetMessageByID(ctx context.Context, messageID string) (*models.ChatMessage, error)
-	GetRoomMessages(ctx context.Context, roomID string, limit, offset int, beforeMessageID *string) ([]models.ChatMessage, int64, error)
+	GetRoomMessages(ctx context.Context, roomID string, limit int, beforeCursor, afterCursor *time.Time) ([]models.ChatMessage, bool, *time.Time, *time.Time, error)
 	UpdateMessage(ctx context.Context, messageID string, content string) error
 	DeleteMessage(ctx context.Context, messageID string) error
 	MarkMessagesAsRead(ctx context.Context, messageIDs []string, readerID string) error
@@ -156,37 +155,48 @@ func (r *ChatV2Repository) GetMessageByID(ctx context.Context, messageID string)
 	return &message, nil
 }
 
-func (r *ChatV2Repository) GetRoomMessages(ctx context.Context, roomID string, limit, offset int, beforeMessageID *string) ([]models.ChatMessage, int64, error) {
+func (r *ChatV2Repository) GetRoomMessages(ctx context.Context, roomID string, limit int, beforeCursor, afterCursor *time.Time) ([]models.ChatMessage, bool, *time.Time, *time.Time, error) {
 	var messages []models.ChatMessage
-	var total int64
 	
-	query := r.db.WithContext(ctx).Model(&models.ChatMessage{}).Where("room_id = ?", roomID)
+	query := r.db.WithContext(ctx).
+		Where("room_id = ?", roomID)
 	
-	// If beforeMessageID is provided, get messages before that message
-	if beforeMessageID != nil && *beforeMessageID != "" {
-		var beforeMessage models.ChatMessage
-		err := r.db.WithContext(ctx).Where("id = ?", *beforeMessageID).First(&beforeMessage).Error
-		if err != nil {
-			return nil, 0, fmt.Errorf("before message not found: %w", err)
-		}
-		query = query.Where("created_at < ?", beforeMessage.CreatedAt)
+	// Cursor-based pagination
+	if beforeCursor != nil {
+		// Get messages older than cursor (for loading more history)
+		query = query.Where("created_at < ?", *beforeCursor)
+	} else if afterCursor != nil {
+		// Get messages newer than cursor (for loading new messages)
+		query = query.Where("created_at > ?", *afterCursor)
 	}
 	
-	// Get total count
-	err := query.Count(&total).Error
-	if err != nil {
-		return nil, 0, err
-	}
-	
-	// Get messages with pagination
-	err = query.
+	// Get one extra message to check if there are more
+	err := query.
 		Preload("ReplyTo").
-		Order("created_at DESC").
-		Limit(limit).
-		Offset(offset).
+		Order("created_at DESC, id DESC"). // Newest first for chat
+		Limit(limit + 1).
 		Find(&messages).Error
 	
-	return messages, total, err
+	if err != nil {
+		return nil, false, nil, nil, err
+	}
+	
+	// Check if there are more messages
+	hasMore := len(messages) > limit
+	if hasMore {
+		messages = messages[:limit] // Remove the extra message
+	}
+	
+	// Calculate cursors
+	var nextCursor, prevCursor *time.Time
+	if len(messages) > 0 {
+		// Next cursor points to the oldest message in current batch (for loading older messages)
+		nextCursor = &messages[len(messages)-1].CreatedAt
+		// Prev cursor points to the newest message in current batch (for loading newer messages)  
+		prevCursor = &messages[0].CreatedAt
+	}
+	
+	return messages, hasMore, nextCursor, prevCursor, nil
 }
 
 func (r *ChatV2Repository) UpdateMessage(ctx context.Context, messageID string, content string) error {

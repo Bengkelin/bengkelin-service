@@ -1,0 +1,181 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_USER: postgres
+          POSTGRES_DB: bengkelin_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+          
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+          
+      rabbitmq:
+        image: rabbitmq:3-management
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 30s
+          --health-timeout 30s
+          --health-retries 3
+        ports:
+          - 5672:5672
+          - 15672:15672
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        go mod verify
+
+    - name: Install tools
+      run: |
+        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+        go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+
+    - name: Run linter
+      run: golangci-lint run --timeout=5m
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Run security scan
+      run: gosec ./...
+
+    - name: Setup test environment
+      run: |
+        make test-setup
+      env:
+        TEST_DB_HOST: localhost
+        TEST_DB_PORT: 5432
+        TEST_DB_NAME: bengkelin_test
+        TEST_DB_USER: postgres
+        TEST_DB_PASSWORD: password
+
+    - name: Run unit tests
+      run: make test-unit
+      env:
+        TEST_DB_HOST: localhost
+        TEST_DB_PORT: 5432
+        TEST_DB_NAME: bengkelin_test
+        TEST_DB_USER: postgres
+        TEST_DB_PASSWORD: password
+        TEST_REDIS_HOST: localhost
+        TEST_REDIS_PORT: 6379
+        TEST_RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+
+    - name: Run integration tests
+      run: make test-integration
+      env:
+        TEST_DB_HOST: localhost
+        TEST_DB_PORT: 5432
+        TEST_DB_NAME: bengkelin_test
+        TEST_DB_USER: postgres
+        TEST_DB_PASSWORD: password
+        TEST_REDIS_HOST: localhost
+        TEST_REDIS_PORT: 6379
+        TEST_RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+
+    - name: Run performance tests
+      run: make test-performance
+      env:
+        TEST_DB_HOST: localhost
+        TEST_DB_PORT: 5432
+        TEST_DB_NAME: bengkelin_test
+        TEST_DB_USER: postgres
+        TEST_DB_PASSWORD: password
+        TEST_REDIS_HOST: localhost
+        TEST_REDIS_PORT: 6379
+        TEST_RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+
+    - name: Generate coverage report
+      run: make test-coverage-new
+      env:
+        TEST_DB_HOST: localhost
+        TEST_DB_PORT: 5432
+        TEST_DB_NAME: bengkelin_test
+        TEST_DB_USER: postgres
+        TEST_DB_PASSWORD: password
+        TEST_REDIS_HOST: localhost
+        TEST_REDIS_PORT: 6379
+        TEST_RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/coverage.out
+        flags: unittests
+        name: codecov-umbrella
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: coverage/
+
+    - name: Cleanup test environment
+      if: always()
+      run: make test-cleanup
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+
+    - name: Build application
+      run: make build
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: bengkelin-service
+        path: cmd/app/main

@@ -10,7 +10,7 @@ type Mitra struct {
 	ID          string         `gorm:"primary_key;type:varchar(36)" json:"mitra_id"`
 	FirstName   string         `gorm:"type:varchar(255)" json:"first_name"`
 	LastName    string         `gorm:"type:varchar(255)" json:"last_name"`
-	Email       string         `gorm:"type:varchar(255);unique" json:"email"`
+	Email       string         `gorm:"type:varchar(255);uniqueIndex:idx_mitra_email" json:"email"`
 	Password    string         `gorm:"type:varchar(255)" json:"-"`
 	PhoneNumber string         `gorm:"type:varchar(255)" json:"phone_number"`
 	BankName    string         `gorm:"type:varchar(255)" json:"bank_name"`

@@ -7,5 +7,6 @@ type PesananUpdateRequest struct {
 }
 
 type PesananStatusUpdateRequest struct {
-	Status uint `json:"status"`
+	Status uint   `json:"status" binding:"required,min=0,max=4"`
+	Reason string `json:"reason,omitempty"` // Required when status = 4 (cancelled)
 }

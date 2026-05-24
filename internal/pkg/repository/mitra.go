@@ -1,27 +1,31 @@
 package repository
 
 import (
+	"context"
+	"sync"
+
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 )
 
 var (
 	mitraRepository *MitraRepository
+	mitraOnce       sync.Once
 )
 
 type MitraRepositoryInterface interface {
-	FindMitraByEmail(email string) (*models.Mitra, error)
-	FindMitraByID(mitraID string) (*models.Mitra, error)
-	GetMitraByID(mitraID string) (*models.Mitra, error)
-	CreateMitra(mitra models.Mitra) (models.Mitra, error)
-	UpdateMitra(mitraID string, mitra *models.Mitra) error
+	FindMitraByEmail(ctx context.Context, email string) (*models.Mitra, error)
+	FindMitraByID(ctx context.Context, mitraID string) (*models.Mitra, error)
+	GetMitraByID(ctx context.Context, mitraID string) (*models.Mitra, error)
+	CreateMitra(ctx context.Context, mitra models.Mitra) (models.Mitra, error)
+	UpdateMitra(ctx context.Context, mitraID string, mitra *models.Mitra) error
 }
 
 type MitraRepository struct{}
 
 // CreateMitra implements MitraRepositoryInterface.
-func (repo *MitraRepository) CreateMitra(mitra models.Mitra) (models.Mitra, error) {
-	err := Create(&mitra)
+func (repo *MitraRepository) CreateMitra(ctx context.Context, mitra models.Mitra) (models.Mitra, error) {
+	err := Create(ctx, &mitra)
 	// If error when transaction to database i.e duplicate email
 	if err != nil {
 		return models.Mitra{}, err
@@ -30,11 +34,11 @@ func (repo *MitraRepository) CreateMitra(mitra models.Mitra) (models.Mitra, erro
 }
 
 // FindMitraByEmail implements MitraRepositoryInterface.
-func (*MitraRepository) FindMitraByEmail(email string) (*models.Mitra, error) {
+func (*MitraRepository) FindMitraByEmail(ctx context.Context, email string) (*models.Mitra, error) {
 	var mitra models.Mitra
 	where := models.Mitra{}
 	where.Email = email
-	_, err := First(where, &mitra, nil)
+	_, err := First(ctx, where, &mitra, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -42,11 +46,11 @@ func (*MitraRepository) FindMitraByEmail(email string) (*models.Mitra, error) {
 }
 
 // FindMitraByID implements MitraRepositoryInterface.
-func (*MitraRepository) FindMitraByID(mitraID string) (*models.Mitra, error) {
+func (*MitraRepository) FindMitraByID(ctx context.Context, mitraID string) (*models.Mitra, error) {
 	var mitra models.Mitra
 	where := models.Mitra{}
 	where.ID = mitraID
-	_, err := First(where, &mitra, []string{"Bengkel", "Bengkel.Photos", "Bengkel.Operasionals", "Bengkel.Services", "Bengkel.Addresses"})
+	_, err := First(ctx, where, &mitra, []string{"Bengkel", "Bengkel.Photos", "Bengkel.Operasionals", "Bengkel.Services", "Bengkel.Addresses"})
 	if err != nil {
 		return nil, err
 	}
@@ -54,11 +58,11 @@ func (*MitraRepository) FindMitraByID(mitraID string) (*models.Mitra, error) {
 }
 
 // GetMitraByID implements MitraRepositoryInterface.
-func (*MitraRepository) GetMitraByID(mitraID string) (*models.Mitra, error) {
+func (*MitraRepository) GetMitraByID(ctx context.Context, mitraID string) (*models.Mitra, error) {
 	var mitra models.Mitra
 	where := models.Mitra{}
 	where.ID = mitraID
-	_, err := First(where, &mitra, []string{"Bengkel"})
+	_, err := First(ctx, where, &mitra, []string{"Bengkel"})
 	if err != nil {
 		return nil, err
 	}
@@ -66,8 +70,8 @@ func (*MitraRepository) GetMitraByID(mitraID string) (*models.Mitra, error) {
 }
 
 // UpdateMitra implements MitraRepositoryInterface.
-func (*MitraRepository) UpdateMitra(mitraID string, mitra *models.Mitra) error {
-	err := db.GetDB().Model(&models.Mitra{}).Where("id = ?", mitraID).Updates(mitra).Error
+func (*MitraRepository) UpdateMitra(ctx context.Context, mitraID string, mitra *models.Mitra) error {
+	err := db.GetDB().WithContext(ctx).Model(&models.Mitra{}).Where("id = ?", mitraID).Updates(mitra).Error
 
 	if err != nil {
 		return err
@@ -76,8 +80,8 @@ func (*MitraRepository) UpdateMitra(mitraID string, mitra *models.Mitra) error {
 }
 
 func GetMitraRepository() MitraRepositoryInterface {
-	if mitraRepository == nil {
+	mitraOnce.Do(func() {
 		mitraRepository = &MitraRepository{}
-	}
+	})
 	return mitraRepository
 }

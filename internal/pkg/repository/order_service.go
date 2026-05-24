@@ -1,33 +1,37 @@
 package repository
 
 import (
+	"context"
+	"sync"
+
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 )
 
 var (
 	orderServiceRepository *OrderServiceRepository
+	orderServiceOnce       sync.Once
 )
 
 type OrderServiceRepositoryInterface interface {
-	CreateOrderService(orderService models.OrderService) (models.OrderService, error)
-	UpdateOrderServiceById(orderServiceId string, orderService *models.OrderService) error
-	GetAllOrderService() ([]models.OrderService, error)
-	GetAllOrderServicePaginate(page int, limit int, userId string) ([]models.OrderService, int, error)
+	CreateOrderService(ctx context.Context, orderService models.OrderService) (models.OrderService, error)
+	UpdateOrderServiceById(ctx context.Context, orderServiceId string, orderService *models.OrderService) error
+	GetAllOrderService(ctx context.Context) ([]models.OrderService, error)
+	GetAllOrderServicePaginate(ctx context.Context, page int, limit int, userId string) ([]models.OrderService, int, error)
 }
 
 type OrderServiceRepository struct{}
 
 func GetOrderServiceRepository() OrderServiceRepositoryInterface {
-	if orderServiceRepository == nil {
+	orderServiceOnce.Do(func() {
 		orderServiceRepository = &OrderServiceRepository{}
-	}
+	})
 	return orderServiceRepository
 }
 
 // CreateOrderService implements OrderServiceRepositoryInterface.
-func (repo *OrderServiceRepository) CreateOrderService(orderService models.OrderService) (models.OrderService, error) {
-	err := db.GetDB().Create(&orderService).Error
+func (repo *OrderServiceRepository) CreateOrderService(ctx context.Context, orderService models.OrderService) (models.OrderService, error) {
+	err := db.GetDB().WithContext(ctx).Create(&orderService).Error
 	if err != nil {
 		return models.OrderService{}, err
 	}
@@ -35,8 +39,8 @@ func (repo *OrderServiceRepository) CreateOrderService(orderService models.Order
 }
 
 // UpdateOrderServiceById implements OrderServiceRepositoryInterface.
-func (*OrderServiceRepository) UpdateOrderServiceById(orderServiceId string, orderService *models.OrderService) error {
-	err := db.GetDB().Model(&models.OrderService{}).Where("id = ?", orderServiceId).Updates(orderService).Error
+func (*OrderServiceRepository) UpdateOrderServiceById(ctx context.Context, orderServiceId string, orderService *models.OrderService) error {
+	err := db.GetDB().WithContext(ctx).Model(&models.OrderService{}).Where("id = ?", orderServiceId).Updates(orderService).Error
 
 	if err != nil {
 		return err
@@ -45,9 +49,9 @@ func (*OrderServiceRepository) UpdateOrderServiceById(orderServiceId string, ord
 }
 
 // GetAllOrderService implements OrderServiceRepositoryInterface.
-func (*OrderServiceRepository) GetAllOrderService() ([]models.OrderService, error) {
+func (*OrderServiceRepository) GetAllOrderService(ctx context.Context) ([]models.OrderService, error) {
 	var orderServices []models.OrderService
-	err := db.GetDB().Find(&orderServices).Error
+	err := db.GetDB().WithContext(ctx).Find(&orderServices).Error
 	if err != nil {
 		return nil, err
 	}
@@ -55,19 +59,18 @@ func (*OrderServiceRepository) GetAllOrderService() ([]models.OrderService, erro
 }
 
 // GetAllOrderServicePaginate implements OrderServiceRepositoryInterface.
-func (*OrderServiceRepository) GetAllOrderServicePaginate(page int, limit int, userId string) ([]models.OrderService, int, error) {
+func (*OrderServiceRepository) GetAllOrderServicePaginate(ctx context.Context, page int, limit int, userId string) ([]models.OrderService, int, error) {
 	var orderServices []models.OrderService
 	var total int64
-	err := db.GetDB().Model(&models.OrderService{}).Where("user_id = ?", userId).Count(&total).Error
+	err := db.GetDB().WithContext(ctx).Model(&models.OrderService{}).Where("user_id = ?", userId).Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	err = db.GetDB().Where("user_id = ?", userId).Offset((page - 1) * limit).Limit(limit).Find(&orderServices).Error
+	err = db.GetDB().WithContext(ctx).Where("user_id = ?", userId).Offset((page - 1) * limit).Limit(limit).Find(&orderServices).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
 	return orderServices, int(total), nil
 }
-	

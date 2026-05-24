@@ -4,6 +4,7 @@ import (
 	v1 "github.com/Bengkelin/bengkelin-service/internal/api/router/v1"
 	v2 "github.com/Bengkelin/bengkelin-service/internal/api/router/v2"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
+	"github.com/Bengkelin/bengkelin-service/internal/pkg/container"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/rabbitmq"
 	redisClient "github.com/Bengkelin/bengkelin-service/internal/pkg/redis"
@@ -46,7 +47,7 @@ func SetConfiguration(configPath string) {
 	}
 
 	// Start cleanup service for expired refresh tokens
-	cleanupService := service.GetCleanupService()
+	cleanupService := container.GetContainer().CleanupService
 	cleanupService.StartPeriodicCleanup()
 	applog.Info("Cleanup service started")
 

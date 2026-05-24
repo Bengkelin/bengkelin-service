@@ -8,6 +8,6 @@ type UserAddress struct {
 	FullAddress  string  `json:"full_address"`
 	Note         string  `json:"note"`
 	IsPrimary    *bool   `gorm:"type:bool;default:false" json:"is_primary"`
-	UserID       string  `gorm:"type:varchar(36);index" json:"user_id"`
+	UserID       string  `gorm:"type:varchar(36);index:idx_user_addresses_user_id" json:"user_id"`
 	User         User    `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 }

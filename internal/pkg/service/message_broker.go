@@ -45,6 +45,12 @@ type MessageBroker interface {
 	Cleanup(ctx context.Context) error
 }
 
+// RedisBrokerDebugger provides debugging methods for Redis broker
+type RedisBrokerDebugger interface {
+	TestRedisPubSub(ctx context.Context) error
+	LogRedisState(ctx context.Context)
+}
+
 type RedisBroker struct {
 	redisClient *redis.RedisCache
 	pubsub      *goredis.PubSub
@@ -113,51 +119,182 @@ func NewRedisBroker(redisClient *redis.RedisCache) MessageBroker {
 
 // Publisher methods
 func (b *RedisBroker) PublishMessage(ctx context.Context, channel string, message interface{}) error {
+	applog.InfoCtx(ctx, "Redis: Attempting to publish message", 
+		"channel", channel, 
+		"message_type", getMessageType(message))
+	
 	data, err := json.Marshal(message)
 	if err != nil {
+		applog.LogErrorCtx(ctx, err, "Redis: Failed to marshal message for publishing", "channel", channel)
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 	
 	// Use the underlying Redis client directly for pub/sub
 	client := b.getRedisClient()
-	return client.Publish(ctx, channel, data).Err()
+	
+	// CRITICAL: Test Redis connection before publishing
+	if err := b.testRedisConnection(ctx); err != nil {
+		applog.LogErrorCtx(ctx, err, "Redis: Connection test failed before publishing", "channel", channel)
+		return fmt.Errorf("redis connection failed: %w", err)
+	}
+	
+	// Publish message
+	result := client.Publish(ctx, channel, data)
+	if err := result.Err(); err != nil {
+		applog.LogErrorCtx(ctx, err, "Redis: Failed to publish message", 
+			"channel", channel, 
+			"data_size", len(data))
+		return fmt.Errorf("failed to publish to Redis: %w", err)
+	}
+	
+	// Get number of subscribers who received the message
+	subscriberCount := result.Val()
+	applog.InfoCtx(ctx, "Redis: Message published successfully", 
+		"channel", channel, 
+		"subscriber_count", subscriberCount,
+		"data_size", len(data),
+		"message_type", getMessageType(message))
+	
+	// CRITICAL: Log if no subscribers received the message
+	if subscriberCount == 0 {
+		applog.InfoCtx(ctx, "Redis: WARNING - No subscribers received message", 
+			"channel", channel,
+			"message_type", getMessageType(message))
+	}
+	
+	return nil
 }
 
 func (b *RedisBroker) PublishToRoom(ctx context.Context, roomID string, message interface{}) error {
 	channel := ChannelRoomPrefix + roomID
-	return b.PublishMessage(ctx, channel, message)
+	
+	applog.InfoCtx(ctx, "Redis: Publishing message to room", 
+		"room_id", roomID, 
+		"channel", channel,
+		"message_type", getMessageType(message))
+	
+	// CRITICAL: Check if room has any connections before publishing
+	roomConnections := b.GetRoomConnections(roomID)
+	applog.InfoCtx(ctx, "Redis: Room connection status", 
+		"room_id", roomID,
+		"local_connections", len(roomConnections),
+		"connections", roomConnections)
+	
+	err := b.PublishMessage(ctx, channel, message)
+	if err != nil {
+		applog.LogErrorCtx(ctx, err, "Redis: Failed to publish to room", "room_id", roomID)
+		return err
+	}
+	
+	applog.InfoCtx(ctx, "Redis: Room message published successfully", 
+		"room_id", roomID, 
+		"channel", channel)
+	
+	return nil
 }
 
 func (b *RedisBroker) PublishToUser(ctx context.Context, userID, userType string, message interface{}) error {
 	channel := ChannelUserPrefix + userID + ":" + userType
-	return b.PublishMessage(ctx, channel, message)
+	
+	applog.InfoCtx(ctx, "Redis: Publishing message to user", 
+		"user_id", userID, 
+		"user_type", userType,
+		"channel", channel,
+		"message_type", getMessageType(message))
+	
+	// CRITICAL: Check if user has any connections before publishing
+	userConnections := b.GetUserConnections(userID, userType)
+	applog.InfoCtx(ctx, "Redis: User connection status", 
+		"user_id", userID,
+		"user_type", userType,
+		"local_connections", len(userConnections),
+		"connections", userConnections)
+	
+	err := b.PublishMessage(ctx, channel, message)
+	if err != nil {
+		applog.LogErrorCtx(ctx, err, "Redis: Failed to publish to user", 
+			"user_id", userID, 
+			"user_type", userType)
+		return err
+	}
+	
+	applog.InfoCtx(ctx, "Redis: User message published successfully", 
+		"user_id", userID, 
+		"user_type", userType,
+		"channel", channel)
+	
+	return nil
 }
 
 // Subscriber methods
 func (b *RedisBroker) Subscribe(ctx context.Context, channels ...string) (<-chan *Message, error) {
+	applog.InfoCtx(ctx, "Redis: Starting subscription", 
+		"channels", channels, 
+		"channel_count", len(channels))
+	
 	client := b.getRedisClient()
+	
+	// CRITICAL: Test Redis connection before subscribing
+	if err := b.testRedisConnection(ctx); err != nil {
+		applog.LogErrorCtx(ctx, err, "Redis: Connection test failed before subscribing", "channels", channels)
+		return nil, fmt.Errorf("redis connection failed: %w", err)
+	}
+	
 	pubsub := client.Subscribe(ctx, channels...)
+	
+	// CRITICAL: Test subscription immediately with timeout
+	testCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	_, err := pubsub.Receive(testCtx)
+	if err != nil {
+		applog.LogErrorCtx(ctx, err, "Redis: Failed to establish subscription", "channels", channels)
+		pubsub.Close()
+		return nil, fmt.Errorf("failed to establish Redis subscription: %w", err)
+	}
+	
+	applog.InfoCtx(ctx, "Redis: Subscription established successfully", "channels", channels)
 	
 	msgChan := make(chan *Message, 100)
 	
 	go func() {
-		defer close(msgChan)
-		defer pubsub.Close()
+		defer func() {
+			applog.InfoCtx(ctx, "Redis: Subscription goroutine ending", "channels", channels)
+			close(msgChan)
+			pubsub.Close()
+		}()
 		
+		applog.InfoCtx(ctx, "Redis: Subscription goroutine started", "channels", channels)
+		
+		messageCount := 0
 		for {
 			select {
 			case <-ctx.Done():
+				applog.InfoCtx(ctx, "Redis: Subscription context cancelled", 
+					"channels", channels, 
+					"messages_received", messageCount)
 				return
 			default:
 				msg, err := pubsub.ReceiveMessage(ctx)
 				if err != nil {
-					applog.LogErrorCtx(ctx, err, "Error receiving message from Redis")
+					applog.LogErrorCtx(ctx, err, "Redis: Error receiving message", 
+						"channels", channels, 
+						"messages_received", messageCount)
 					continue
 				}
 				
+				messageCount++
+				applog.InfoCtx(ctx, "Redis: Message received from subscription", 
+					"channel", msg.Channel,
+					"pattern", msg.Pattern,
+					"payload_size", len(msg.Payload),
+					"message_count", messageCount)
+				
 				var data interface{}
 				if err := json.Unmarshal([]byte(msg.Payload), &data); err != nil {
-					applog.LogErrorCtx(ctx, err, "Error unmarshaling message payload")
+					applog.LogErrorCtx(ctx, err, "Redis: Error unmarshaling message payload", 
+						"channel", msg.Channel,
+						"payload", msg.Payload)
 					continue
 				}
 				
@@ -169,10 +306,21 @@ func (b *RedisBroker) Subscribe(ctx context.Context, channels ...string) (<-chan
 					Timestamp: time.Now(),
 				}
 				
+				applog.InfoCtx(ctx, "Redis: Forwarding message to channel", 
+					"redis_channel", msg.Channel,
+					"message_type", getMessageType(data))
+				
 				select {
 				case msgChan <- message:
+					applog.InfoCtx(ctx, "Redis: Message forwarded successfully", 
+						"redis_channel", msg.Channel)
 				case <-ctx.Done():
+					applog.InfoCtx(ctx, "Redis: Context cancelled while forwarding message", 
+						"redis_channel", msg.Channel)
 					return
+				default:
+					applog.InfoCtx(ctx, "Redis: Message channel full, dropping message", 
+						"redis_channel", msg.Channel)
 				}
 			}
 		}
@@ -199,6 +347,12 @@ func (b *RedisBroker) AddConnection(userID, userType, socketID string) {
 	now := time.Now()
 	userKey := userID + ":" + userType
 	
+	applog.InfoCtx(b.ctx, "Redis: Adding connection", 
+		"user_id", userID, 
+		"user_type", userType, 
+		"socket_id", socketID,
+		"user_key", userKey)
+	
 	// Add connection info
 	b.connections[socketID] = &ConnectionInfo{
 		SocketID:    socketID,
@@ -215,10 +369,14 @@ func (b *RedisBroker) AddConnection(userID, userType, socketID string) {
 	// Update presence
 	b.setUserOnlineInternal(userID, userType, socketID, now)
 	
-	applog.InfoCtx(b.ctx, "Connection added", 
+	// CRITICAL: Log current state after adding connection
+	applog.InfoCtx(b.ctx, "Redis: Connection added - Current state", 
 		"user_id", userID, 
 		"user_type", userType, 
-		"socket_id", socketID)
+		"socket_id", socketID,
+		"total_connections", len(b.connections),
+		"user_sockets_count", len(b.userSockets[userKey]),
+		"total_users", len(b.userSockets))
 }
 
 func (b *RedisBroker) RemoveConnection(socketID string) {
@@ -300,12 +458,21 @@ func (b *RedisBroker) SetUserOnline(userID, userType string, socketID string) {
 func (b *RedisBroker) setUserOnlineInternal(userID, userType, socketID string, timestamp time.Time) {
 	userKey := userID + ":" + userType
 	
+	applog.InfoCtx(b.ctx, "Redis: Setting user online", 
+		"user_id", userID, 
+		"user_type", userType,
+		"socket_id", socketID,
+		"user_key", userKey)
+	
 	if presence, exists := b.presence[userKey]; exists {
 		presence.IsOnline = true
 		presence.LastSeen = timestamp
 		if !contains(presence.SocketIDs, socketID) {
 			presence.SocketIDs = append(presence.SocketIDs, socketID)
 		}
+		applog.InfoCtx(b.ctx, "Redis: Updated existing presence", 
+			"user_key", userKey,
+			"socket_count", len(presence.SocketIDs))
 	} else {
 		b.presence[userKey] = &PresenceInfo{
 			UserID:      userID,
@@ -315,6 +482,8 @@ func (b *RedisBroker) setUserOnlineInternal(userID, userType, socketID string, t
 			SocketIDs:   []string{socketID},
 			ConnectedAt: timestamp,
 		}
+		applog.InfoCtx(b.ctx, "Redis: Created new presence", 
+			"user_key", userKey)
 	}
 	
 	// Publish presence update
@@ -330,8 +499,18 @@ func (b *RedisBroker) setUserOnlineInternal(userID, userType, socketID string, t
 		}
 		
 		channel := ChannelPresencePrefix + userID + ":" + userType
+		applog.InfoCtx(ctx, "Redis: Publishing presence update", 
+			"user_id", userID,
+			"user_type", userType,
+			"channel", channel,
+			"is_online", true)
+		
 		if err := b.PublishMessage(ctx, channel, presenceUpdate); err != nil {
-			applog.LogErrorCtx(ctx, err, "Failed to publish presence update")
+			applog.LogErrorCtx(ctx, err, "Redis: Failed to publish presence update")
+		} else {
+			applog.InfoCtx(ctx, "Redis: Presence update published successfully", 
+				"user_id", userID,
+				"user_type", userType)
 		}
 	}()
 }
@@ -501,16 +680,124 @@ func (b *RedisBroker) getRedisClient() *goredis.Client {
 	return b.redisClient.GetClient()
 }
 
+// CRITICAL: Add Redis connection testing method
+func (b *RedisBroker) testRedisConnection(ctx context.Context) error {
+	client := b.getRedisClient()
+	
+	// Test with shorter timeout to avoid blocking
+	testCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	
+	result := client.Ping(testCtx)
+	if err := result.Err(); err != nil {
+		applog.LogErrorCtx(ctx, err, "Redis: Connection test failed")
+		return err
+	}
+	
+	response := result.Val()
+	applog.InfoCtx(ctx, "Redis: Connection test successful", "response", response)
+	return nil
+}
+
+// CRITICAL: Add Redis state inspection methods
+func (b *RedisBroker) LogRedisState(ctx context.Context) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	
+	applog.InfoCtx(ctx, "Redis: Current broker state", 
+		"total_connections", len(b.connections),
+		"total_users", len(b.userSockets),
+		"total_rooms", len(b.roomSockets),
+		"online_users", len(b.presence))
+	
+	// Log connection details
+	for socketID, conn := range b.connections {
+		applog.InfoCtx(ctx, "Redis: Connection detail", 
+			"socket_id", socketID,
+			"user_id", conn.UserID,
+			"user_type", conn.UserType,
+			"rooms", conn.Rooms,
+			"connected_at", conn.ConnectedAt,
+			"last_ping", conn.LastPing)
+	}
+	
+	// Log room details
+	for roomID, sockets := range b.roomSockets {
+		applog.InfoCtx(ctx, "Redis: Room detail", 
+			"room_id", roomID,
+			"socket_count", len(sockets),
+			"sockets", sockets)
+	}
+	
+	// Log user presence
+	for userKey, presence := range b.presence {
+		applog.InfoCtx(ctx, "Redis: Presence detail", 
+			"user_key", userKey,
+			"is_online", presence.IsOnline,
+			"socket_ids", presence.SocketIDs,
+			"last_seen", presence.LastSeen)
+	}
+}
+
+// CRITICAL: Add method to test Redis pub/sub functionality
+func (b *RedisBroker) TestRedisPubSub(ctx context.Context) error {
+	testChannel := "test:redis:pubsub:" + time.Now().Format("20060102150405")
+	testMessage := map[string]interface{}{
+		"type": "test",
+		"data": "Redis pub/sub test message",
+		"timestamp": time.Now(),
+	}
+	
+	applog.InfoCtx(ctx, "Redis: Starting pub/sub test", "test_channel", testChannel)
+	
+	// Subscribe to test channel
+	msgChan, err := b.Subscribe(ctx, testChannel)
+	if err != nil {
+		applog.LogErrorCtx(ctx, err, "Redis: Failed to subscribe to test channel")
+		return err
+	}
+	
+	// Create timeout context for test
+	testCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	
+	// Publish test message
+	go func() {
+		time.Sleep(100 * time.Millisecond) // Small delay to ensure subscription is ready
+		if err := b.PublishMessage(testCtx, testChannel, testMessage); err != nil {
+			applog.LogErrorCtx(testCtx, err, "Redis: Failed to publish test message")
+		}
+	}()
+	
+	// Wait for message or timeout
+	select {
+	case msg := <-msgChan:
+		applog.InfoCtx(ctx, "Redis: Pub/sub test successful", 
+			"test_channel", testChannel,
+			"received_channel", msg.Channel,
+			"payload_size", len(msg.Payload))
+		return nil
+	case <-testCtx.Done():
+		applog.LogErrorCtx(ctx, testCtx.Err(), "Redis: Pub/sub test timed out", "test_channel", testChannel)
+		return fmt.Errorf("Redis pub/sub test timed out")
+	}
+}
+
 func (b *RedisBroker) startCleanupRoutine() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 	
+	applog.InfoCtx(b.ctx, "Redis: Cleanup routine started")
+	
 	for {
 		select {
 		case <-b.ctx.Done():
+			applog.InfoCtx(b.ctx, "Redis: Cleanup routine stopping")
 			return
 		case <-ticker.C:
+			applog.InfoCtx(b.ctx, "Redis: Running cleanup routine")
 			b.cleanupStaleConnections()
+			b.LogRedisState(b.ctx)
 		}
 	}
 }
@@ -569,4 +856,16 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+// Helper function to extract message type for logging
+func getMessageType(message interface{}) string {
+	if msgData, ok := message.(map[string]interface{}); ok {
+		if msgType, exists := msgData["type"]; exists {
+			if typeStr, ok := msgType.(string); ok {
+				return typeStr
+			}
+		}
+	}
+	return "unknown"
 }

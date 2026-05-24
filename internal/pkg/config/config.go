@@ -95,7 +95,6 @@ type ServerConnection struct {
 	Port                 string `mapstructure:"SERVER_PORT"`
 	Secret               string `mapstructure:"SERVER_SECRET"`
 	Secret2              string `mapstructure:"SERVER_SECRET2"`
-	ApiSecret            string `mapstructure:"API_SECRET"`
 	DevMode              string `mapstructure:"SERVER_DEV_MODE"`
 	Mode                 string `mapstructure:"SERVER_MODE"`
 	Name                 string `mapstructure:"SERVER_NAME"`
@@ -254,8 +253,8 @@ func Setup(configPath string) {
 	if rateLimitConfiguration.StrictBurst == 0 {
 		rateLimitConfiguration.StrictBurst = 2
 	}
-	// Rate limiting is enabled by default
-	rateLimitConfiguration.Enabled = true
+	// Rate limiting is enabled by default only if not explicitly set in env
+	// The mapstructure should handle the RATE_LIMIT_ENABLED env var
 
 	configuration := Configuration{
 		App:           appConfiguration,

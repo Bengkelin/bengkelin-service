@@ -4,17 +4,16 @@ import (
 	"github.com/Bengkelin/bengkelin-service/internal/api/middleware"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/container"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	appErrors "github.com/Bengkelin/bengkelin-service/internal/pkg/errors"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
 	"github.com/gin-gonic/gin"
 )
 
 // AuthHandler handles authentication-related requests
 type AuthHandler struct {
 	BaseHandler
-	authService service.AuthServiceInterface
+	authService  service.AuthServiceInterface
+	mitraService service.MitraServiceInterface
 }
 
 // AuthHandlerInterface defines the auth handler contract
@@ -23,12 +22,12 @@ type AuthHandlerInterface interface {
 	UsersAuthLogin(c *gin.Context)
 	UsersAuthRegister(c *gin.Context)
 	UsersAuthGoogle(c *gin.Context)
-	
+
 	// Mitra authentication
 	MitrasAuthLogin(c *gin.Context)
 	MitrasAuthRegister(c *gin.Context)
 	MitrasAuthGoogle(c *gin.Context)
-	
+
 	// Token management
 	UsersRefreshToken(c *gin.Context)
 	MitrasRefreshToken(c *gin.Context)
@@ -36,10 +35,7 @@ type AuthHandlerInterface interface {
 	MitrasLogout(c *gin.Context)
 	UsersLogoutAll(c *gin.Context)
 	MitrasLogoutAll(c *gin.Context)
-	
-	// Legacy methods (deprecated)
-	UsersNewAddress(c *gin.Context)
-	UsersNewVehicle(c *gin.Context)
+
 	MitrasNewBank(c *gin.Context)
 	MitrasUpdateBank(c *gin.Context)
 	MitrasUpdateProfile(c *gin.Context)
@@ -47,9 +43,10 @@ type AuthHandlerInterface interface {
 
 // NewAuthHandler creates a new auth handler
 func NewAuthHandler() AuthHandlerInterface {
-	container := container.GetContainer()
+	c := container.GetContainer()
 	return &AuthHandler{
-		authService: container.AuthService,
+		authService:  c.AuthService,
+		mitraService: c.MitraService,
 	}
 }
 
@@ -70,24 +67,24 @@ func NewAuthHandler() AuthHandlerInterface {
 // @Router /api/v1/users/auth/login [post]
 func (h *AuthHandler) UsersAuthLogin(c *gin.Context) {
 	h.LogRequest(c, "UsersAuthLogin")
-	
+
 	var req validator.LoginRequest
 	if !middleware.ValidateRequest(c, &req) {
 		return
 	}
-	
+
 	// Convert validator to DTO
 	loginReq := dto.LoginRequest{
 		Email:    req.Email,
 		Password: req.Password,
 	}
-	
+
 	authResp, err := h.authService.LoginUser(c.Request.Context(), loginReq)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleSuccess(c, "Login successful", authResp)
 }
 
@@ -106,12 +103,12 @@ func (h *AuthHandler) UsersAuthLogin(c *gin.Context) {
 // @Router /api/v1/users/auth/register [post]
 func (h *AuthHandler) UsersAuthRegister(c *gin.Context) {
 	h.LogRequest(c, "UsersAuthRegister")
-	
+
 	var req validator.RegisterNewUserRequest
 	if !middleware.ValidateRequest(c, &req) {
 		return
 	}
-	
+
 	// Convert validator to DTO
 	registerReq := dto.RegisterUserRequest{
 		FirstName:       req.FirstName,
@@ -121,36 +118,36 @@ func (h *AuthHandler) UsersAuthRegister(c *gin.Context) {
 		Password:        req.Password,
 		ConfirmPassword: req.ConfirmPassword,
 	}
-	
+
 	authResp, err := h.authService.RegisterUser(c.Request.Context(), registerReq)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleCreated(c, "Registration successful", authResp)
 }
 
 func (h *AuthHandler) UsersAuthGoogle(c *gin.Context) {
 	h.LogRequest(c, "UsersAuthGoogle")
-	
+
 	var req validator.GoogleAuthRequest
 	if !middleware.ValidateRequest(c, &req) {
 		return
 	}
-	
+
 	// Convert validator to DTO
 	googleReq := dto.GoogleAuthRequest{
 		Email:     req.Email,
 		FirstName: req.FirstName,
 	}
-	
+
 	authResp, err := h.authService.LoginUserWithGoogle(c.Request.Context(), googleReq)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleSuccess(c, "Google login successful", authResp)
 }
 
@@ -171,35 +168,35 @@ func (h *AuthHandler) UsersAuthGoogle(c *gin.Context) {
 // @Router /api/v1/mitras/auth/login [post]
 func (h *AuthHandler) MitrasAuthLogin(c *gin.Context) {
 	h.LogRequest(c, "MitrasAuthLogin")
-	
+
 	var req validator.LoginRequest
 	if !middleware.ValidateRequest(c, &req) {
 		return
 	}
-	
+
 	// Convert validator to DTO
 	loginReq := dto.LoginRequest{
 		Email:    req.Email,
 		Password: req.Password,
 	}
-	
+
 	authResp, err := h.authService.LoginMitra(c.Request.Context(), loginReq)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleSuccess(c, "Login successful", authResp)
 }
 
 func (h *AuthHandler) MitrasAuthRegister(c *gin.Context) {
 	h.LogRequest(c, "MitrasAuthRegister")
-	
+
 	var req validator.RegisterNewMitraRequest
 	if !middleware.ValidateRequest(c, &req) {
 		return
 	}
-	
+
 	// Convert validator to DTO
 	registerReq := dto.RegisterMitraRequest{
 		FirstName:       req.FirstName,
@@ -209,36 +206,36 @@ func (h *AuthHandler) MitrasAuthRegister(c *gin.Context) {
 		Password:        req.Password,
 		ConfirmPassword: req.ConfirmPassword,
 	}
-	
+
 	authResp, err := h.authService.RegisterMitra(c.Request.Context(), registerReq)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleCreated(c, "Registration successful", authResp)
 }
 
 func (h *AuthHandler) MitrasAuthGoogle(c *gin.Context) {
 	h.LogRequest(c, "MitrasAuthGoogle")
-	
+
 	var req validator.GoogleAuthRequest
 	if !middleware.ValidateRequest(c, &req) {
 		return
 	}
-	
+
 	// Convert validator to DTO
 	googleReq := dto.GoogleAuthRequest{
 		Email:     req.Email,
 		FirstName: req.FirstName,
 	}
-	
+
 	authResp, err := h.authService.LoginMitraWithGoogle(c.Request.Context(), googleReq)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleSuccess(c, "Google login successful", authResp)
 }
 
@@ -246,131 +243,189 @@ func (h *AuthHandler) MitrasAuthGoogle(c *gin.Context) {
 
 func (h *AuthHandler) UsersRefreshToken(c *gin.Context) {
 	h.LogRequest(c, "UsersRefreshToken")
-	
+
 	var req validator.RefreshTokenRequest
 	if !middleware.ValidateRequest(c, &req) {
 		return
 	}
-	
+
 	authResp, err := h.authService.RefreshUserToken(c.Request.Context(), req.RefreshToken)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleSuccess(c, "Token refreshed successfully", authResp)
 }
 
 func (h *AuthHandler) MitrasRefreshToken(c *gin.Context) {
 	h.LogRequest(c, "MitrasRefreshToken")
-	
+
 	var req validator.RefreshTokenRequest
 	if !middleware.ValidateRequest(c, &req) {
 		return
 	}
-	
+
 	authResp, err := h.authService.RefreshMitraToken(c.Request.Context(), req.RefreshToken)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleSuccess(c, "Token refreshed successfully", authResp)
 }
 
 func (h *AuthHandler) UsersLogout(c *gin.Context) {
 	h.LogRequest(c, "UsersLogout")
-	
+
 	var req validator.LogoutRequest
 	if !middleware.ValidateRequest(c, &req) {
 		return
 	}
-	
+
 	err := h.authService.LogoutUser(c.Request.Context(), req.RefreshToken)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleSuccess(c, "Logout successful", nil)
 }
 
 func (h *AuthHandler) MitrasLogout(c *gin.Context) {
 	h.LogRequest(c, "MitrasLogout")
-	
+
 	var req validator.LogoutRequest
 	if !middleware.ValidateRequest(c, &req) {
 		return
 	}
-	
+
 	err := h.authService.LogoutMitra(c.Request.Context(), req.RefreshToken)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleSuccess(c, "Logout successful", nil)
 }
 
 func (h *AuthHandler) UsersLogoutAll(c *gin.Context) {
 	h.LogRequest(c, "UsersLogoutAll")
-	
+
 	userID, err := h.GetUserID(c)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	err = h.authService.LogoutAllUserDevices(c.Request.Context(), userID)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleSuccess(c, "Logout from all devices successful", nil)
 }
 
 func (h *AuthHandler) MitrasLogoutAll(c *gin.Context) {
 	h.LogRequest(c, "MitrasLogoutAll")
-	
+
 	mitraID, err := h.GetMitraID(c)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	err = h.authService.LogoutAllMitraDevices(c.Request.Context(), mitraID)
 	if err != nil {
 		h.HandleError(c, err)
 		return
 	}
-	
+
 	h.HandleSuccess(c, "Logout from all devices successful", nil)
 }
 
-// Legacy methods for backward compatibility (will be removed)
-
-func (h *AuthHandler) UsersNewAddress(c *gin.Context) {
-	applog.Info("Deprecated method called: UsersNewAddress - use UserHandler instead")
-	h.HandleError(c, appErrors.ErrInternalServer.WithDetails("This endpoint has been moved to /api/v1/users/address"))
-}
-
-func (h *AuthHandler) UsersNewVehicle(c *gin.Context) {
-	applog.Info("Deprecated method called: UsersNewVehicle - use UserHandler instead")
-	h.HandleError(c, appErrors.ErrInternalServer.WithDetails("This endpoint has been moved to /api/v1/users/vehicle"))
-}
-
 func (h *AuthHandler) MitrasNewBank(c *gin.Context) {
-	applog.Info("Deprecated method called: MitrasNewBank - use MitraHandler instead")
-	h.HandleError(c, appErrors.ErrInternalServer.WithDetails("This endpoint has been moved to /api/v1/mitras/bank"))
+	h.LogRequest(c, "MitrasNewBank")
+
+	mitraID, err := h.GetMitraID(c)
+	if err != nil {
+		h.HandleError(c, err)
+		return
+	}
+
+	var req validator.MitraBankUpdateRequest
+	if !middleware.ValidateRequest(c, &req) {
+		return
+	}
+
+	bankReq := dto.MitraBankRequest{
+		BankName:   req.BankName,
+		BankNumber: req.BankNumber,
+	}
+
+	result, err := h.mitraService.CreateMitraBank(c.Request.Context(), mitraID, bankReq)
+	if err != nil {
+		h.HandleError(c, err)
+		return
+	}
+
+	h.HandleCreated(c, "Bank account created successfully", result)
 }
 
 func (h *AuthHandler) MitrasUpdateBank(c *gin.Context) {
-	applog.Info("Deprecated method called: MitrasUpdateBank - use MitraHandler instead")
-	h.HandleError(c, appErrors.ErrInternalServer.WithDetails("This endpoint has been moved to /api/v1/mitras/bank"))
+	h.LogRequest(c, "MitrasUpdateBank")
+
+	mitraID, err := h.GetMitraID(c)
+	if err != nil {
+		h.HandleError(c, err)
+		return
+	}
+
+	var req validator.MitraBankUpdateRequest
+	if !middleware.ValidateRequest(c, &req) {
+		return
+	}
+
+	bankReq := dto.MitraBankRequest{
+		BankName:   req.BankName,
+		BankNumber: req.BankNumber,
+	}
+
+	result, err := h.mitraService.UpdateMitraBank(c.Request.Context(), mitraID, bankReq)
+	if err != nil {
+		h.HandleError(c, err)
+		return
+	}
+
+	h.HandleSuccess(c, "Bank account updated successfully", result)
 }
 
 func (h *AuthHandler) MitrasUpdateProfile(c *gin.Context) {
-	applog.Info("Deprecated method called: MitrasUpdateProfile - use MitraHandler instead")
-	h.HandleError(c, appErrors.ErrInternalServer.WithDetails("This endpoint has been moved to /api/v1/mitras/profile"))
+	h.LogRequest(c, "MitrasUpdateProfile")
+
+	mitraID, err := h.GetMitraID(c)
+	if err != nil {
+		h.HandleError(c, err)
+		return
+	}
+
+	var req validator.MitraUpdateProfileRequest
+	if !middleware.ValidateRequest(c, &req) {
+		return
+	}
+
+	updateReq := dto.UpdateMitraRequest{
+		FirstName:   req.FirstName,
+		LastName:    req.LastName,
+		PhoneNumber: req.PhoneNumber,
+	}
+
+	updatedMitra, err := h.mitraService.UpdateMitraProfile(c.Request.Context(), mitraID, updateReq)
+	if err != nil {
+		h.HandleError(c, err)
+		return
+	}
+
+	h.HandleSuccess(c, "Profile updated successfully", toMitraProfileResponse(updatedMitra))
 }

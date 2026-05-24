@@ -9,8 +9,8 @@ import (
 // RefreshToken model for storing refresh tokens
 type RefreshToken struct {
 	ID        string         `gorm:"type:varchar(36);primaryKey" json:"id"`
-	UserID    *string        `gorm:"type:varchar(36);index" json:"user_id,omitempty"`
-	MitraID   *string        `gorm:"type:varchar(36);index" json:"mitra_id,omitempty"`
+	UserID    *string        `gorm:"type:varchar(36);index:idx_refresh_tokens_user_id" json:"user_id,omitempty"`
+	MitraID   *string        `gorm:"type:varchar(36);index:idx_refresh_tokens_mitra_id" json:"mitra_id,omitempty"`
 	Token     string         `gorm:"type:text;not null" json:"token"`
 	ExpiresAt time.Time      `gorm:"not null" json:"expires_at"`
 	IsRevoked bool           `gorm:"default:false" json:"is_revoked"`

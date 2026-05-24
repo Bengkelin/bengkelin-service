@@ -10,8 +10,8 @@ import (
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/rabbitmq"
 	redisClient "github.com/Bengkelin/bengkelin-service/internal/pkg/redis"
-	"github.com/Bengkelin/bengkelin-service/pkg/response"
 	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	"github.com/Bengkelin/bengkelin-service/pkg/response"
 	"github.com/gin-gonic/gin"
 )
 
@@ -46,9 +46,9 @@ type HealthStatus struct {
 
 // CheckResult represents individual health check result
 type CheckResult struct {
-	Status    string `json:"status" example:"healthy"`
-	Message   string `json:"message,omitempty" example:"Connection successful"`
-	Duration  string `json:"duration" example:"5ms"`
+	Status    string    `json:"status" example:"healthy"`
+	Message   string    `json:"message,omitempty" example:"Connection successful"`
+	Duration  string    `json:"duration" example:"5ms"`
 	Timestamp time.Time `json:"timestamp" example:"2024-01-01T00:00:00Z"`
 }
 
@@ -66,9 +66,9 @@ var startTime = time.Now()
 func (h *HealthHandler) HealthCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 	start := time.Now()
-	
+
 	applog.InfoCtx(ctx, "Health check requested")
-	
+
 	status := &HealthStatus{
 		Status:      "healthy",
 		Timestamp:   time.Now(),
@@ -77,35 +77,40 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 		Uptime:      time.Since(startTime).String(),
 		Checks:      make(map[string]CheckResult),
 	}
-	
+
 	// Check database connectivity
 	dbCheck := h.checkDatabase(ctx)
 	status.Checks["database"] = dbCheck
-	
+
 	// Check Redis connectivity
 	redisCheck := h.checkRedis(ctx)
 	status.Checks["redis"] = redisCheck
-	
+
 	// Check RabbitMQ connectivity
 	rabbitmqCheck := h.checkRabbitMQ(ctx)
 	status.Checks["rabbitmq"] = rabbitmqCheck
-	
+
 	// Check system resources
 	systemCheck := h.checkSystem(ctx)
 	status.Checks["system"] = systemCheck
-	
+
 	// Determine overall status
+	// RabbitMQ is optional - service can be healthy without it
 	overallHealthy := true
-	for _, check := range status.Checks {
+	for checkName, check := range status.Checks {
+		// Skip RabbitMQ for overall health - it's optional
+		if checkName == "rabbitmq" {
+			continue
+		}
 		if check.Status != "healthy" {
 			overallHealthy = false
 			break
 		}
 	}
-	
+
 	if !overallHealthy {
 		status.Status = "unhealthy"
-		applog.WarnCtx(ctx, "Health check failed", 
+		applog.WarnCtx(ctx, "Health check failed",
 			"duration", time.Since(start),
 			"checks", status.Checks,
 		)
@@ -113,11 +118,11 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, resp)
 		return
 	}
-	
-	applog.InfoCtx(ctx, "Health check completed successfully", 
+
+	applog.InfoCtx(ctx, "Health check completed successfully",
 		"duration", time.Since(start),
 	)
-	
+
 	resp := response.BuildSuccessResponse("Service healthy", status)
 	c.JSON(http.StatusOK, resp)
 }
@@ -134,7 +139,7 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 	start := time.Now()
-	
+
 	status := &HealthStatus{
 		Status:      "ready",
 		Timestamp:   time.Now(),
@@ -143,36 +148,36 @@ func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 		Uptime:      time.Since(startTime).String(),
 		Checks:      make(map[string]CheckResult),
 	}
-	
+
 	// Check critical dependencies for readiness
 	dbCheck := h.checkDatabase(ctx)
 	status.Checks["database"] = dbCheck
-	
+
 	redisCheck := h.checkRedis(ctx)
 	status.Checks["redis"] = redisCheck
-	
+
 	rabbitmqCheck := h.checkRabbitMQ(ctx)
 	status.Checks["rabbitmq"] = rabbitmqCheck
-	
+
 	// Readiness requires all critical services to be healthy or disabled
-	ready := dbCheck.Status == "healthy" && 
+	ready := dbCheck.Status == "healthy" &&
 		(redisCheck.Status == "healthy" || redisCheck.Status == "disabled") &&
 		(rabbitmqCheck.Status == "healthy" || rabbitmqCheck.Status == "disabled")
-	
+
 	if !ready {
 		status.Status = "not_ready"
-		applog.WarnCtx(ctx, "Readiness check failed", 
+		applog.WarnCtx(ctx, "Readiness check failed",
 			"duration", time.Since(start),
 		)
 		resp := response.BuildFailedResponse("Service not ready", status)
 		c.JSON(http.StatusServiceUnavailable, resp)
 		return
 	}
-	
-	applog.DebugCtx(ctx, "Readiness check completed", 
+
+	applog.DebugCtx(ctx, "Readiness check completed",
 		"duration", time.Since(start),
 	)
-	
+
 	resp := response.BuildSuccessResponse("Service ready", status)
 	c.JSON(http.StatusOK, resp)
 }
@@ -187,7 +192,7 @@ func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 // @Router /live [get]
 func (h *HealthHandler) LivenessCheck(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	status := &HealthStatus{
 		Status:      "alive",
 		Timestamp:   time.Now(),
@@ -196,13 +201,13 @@ func (h *HealthHandler) LivenessCheck(c *gin.Context) {
 		Uptime:      time.Since(startTime).String(),
 		Checks:      make(map[string]CheckResult),
 	}
-	
+
 	// Basic system check for liveness
 	systemCheck := h.checkSystem(ctx)
 	status.Checks["system"] = systemCheck
-	
+
 	applog.DebugCtx(ctx, "Liveness check completed")
-	
+
 	resp := response.BuildSuccessResponse("Service alive", status)
 	c.JSON(http.StatusOK, resp)
 }
@@ -210,7 +215,7 @@ func (h *HealthHandler) LivenessCheck(c *gin.Context) {
 // checkDatabase checks database connectivity
 func (h *HealthHandler) checkDatabase(ctx context.Context) CheckResult {
 	start := time.Now()
-	
+
 	db := db.GetDB()
 	if db == nil {
 		return CheckResult{
@@ -220,7 +225,7 @@ func (h *HealthHandler) checkDatabase(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
+
 	// Get underlying sql.DB for ping
 	sqlDB, err := db.DB()
 	if err != nil {
@@ -231,11 +236,11 @@ func (h *HealthHandler) checkDatabase(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
+
 	// Create context with timeout for database ping
 	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	
+
 	if err := sqlDB.PingContext(pingCtx); err != nil {
 		return CheckResult{
 			Status:    "unhealthy",
@@ -244,7 +249,7 @@ func (h *HealthHandler) checkDatabase(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
+
 	// Check database stats
 	stats := sqlDB.Stats()
 	if stats.OpenConnections == 0 {
@@ -255,7 +260,7 @@ func (h *HealthHandler) checkDatabase(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
+
 	return CheckResult{
 		Status:    "healthy",
 		Message:   "Database connection successful",
@@ -267,7 +272,7 @@ func (h *HealthHandler) checkDatabase(ctx context.Context) CheckResult {
 // checkRedis checks Redis connectivity
 func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 	start := time.Now()
-	
+
 	// Check if Redis is enabled in configuration
 	conf := config.GetConfig()
 	if !conf.Redis.Enabled {
@@ -278,7 +283,7 @@ func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
+
 	redisCache := redisClient.GetRedisClient()
 	if redisCache == nil {
 		return CheckResult{
@@ -288,15 +293,15 @@ func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
+
 	// Test Redis connectivity by setting and getting a test key
 	testKey := "health_check_test"
 	testValue := "ok"
-	
+
 	// Test set operation with shorter timeout for health check
 	testCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	
+
 	if err := redisCache.SetWithContext(testCtx, testKey, testValue, time.Minute); err != nil {
 		return CheckResult{
 			Status:    "unhealthy",
@@ -305,7 +310,7 @@ func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
+
 	// Test get operation
 	var result string
 	if err := redisCache.GetWithContext(testCtx, testKey, &result); err != nil {
@@ -316,10 +321,10 @@ func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
+
 	// Clean up test key
 	redisCache.DeleteWithContext(testCtx, testKey)
-	
+
 	if result != testValue {
 		return CheckResult{
 			Status:    "unhealthy",
@@ -328,7 +333,7 @@ func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
+
 	return CheckResult{
 		Status:    "healthy",
 		Message:   "Redis connection successful",
@@ -337,10 +342,10 @@ func (h *HealthHandler) checkRedis(ctx context.Context) CheckResult {
 	}
 }
 
-// checkRabbitMQ checks RabbitMQ connectivity
+// checkRabbitMQ checks RabbitMQ connectivity with timeout
 func (h *HealthHandler) checkRabbitMQ(ctx context.Context) CheckResult {
 	start := time.Now()
-	
+
 	// Check if RabbitMQ is enabled in configuration
 	conf := config.GetConfig()
 	if !conf.RabbitMQ.Enabled {
@@ -351,47 +356,70 @@ func (h *HealthHandler) checkRabbitMQ(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
-	// Get RabbitMQ instance
-	rabbitMQInstance := rabbitmq.GetInstance()
-	if rabbitMQInstance == nil {
+
+	// Create a timeout context for RabbitMQ check (max 100ms to avoid slowing health check)
+	rabbitCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	defer cancel()
+
+	// Channel to communicate result
+	type result struct {
+		healthy bool
+		message string
+	}
+	resultChan := make(chan result, 1)
+
+	// Run RabbitMQ check in goroutine to respect timeout
+	go func() {
+		// Get RabbitMQ instance
+		rabbitMQInstance := rabbitmq.GetInstance()
+		if rabbitMQInstance == nil {
+			resultChan <- result{healthy: false, message: "RabbitMQ instance not initialized"}
+			return
+		}
+
+		// Check if RabbitMQ is healthy
+		if !rabbitMQInstance.IsHealthy() {
+			resultChan <- result{healthy: false, message: "RabbitMQ connection is not healthy"}
+			return
+		}
+
+		resultChan <- result{healthy: true, message: "RabbitMQ connection successful"}
+	}()
+
+	// Wait for result or timeout
+	select {
+	case res := <-resultChan:
+		status := "unhealthy"
+		if res.healthy {
+			status = "healthy"
+		}
 		return CheckResult{
-			Status:    "unhealthy",
-			Message:   "RabbitMQ instance not initialized",
+			Status:    status,
+			Message:   res.message,
 			Duration:  time.Since(start).String(),
 			Timestamp: time.Now(),
 		}
-	}
-	
-	// Check if RabbitMQ is healthy
-	if !rabbitMQInstance.IsHealthy() {
+	case <-rabbitCtx.Done():
 		return CheckResult{
-			Status:    "unhealthy",
-			Message:   "RabbitMQ connection is not healthy",
+			Status:    "degraded",
+			Message:   "RabbitMQ check timed out (optional service)",
 			Duration:  time.Since(start).String(),
 			Timestamp: time.Now(),
 		}
-	}
-	
-	return CheckResult{
-		Status:    "healthy",
-		Message:   "RabbitMQ connection successful",
-		Duration:  time.Since(start).String(),
-		Timestamp: time.Now(),
 	}
 }
 
 // checkSystem checks system resources and health
 func (h *HealthHandler) checkSystem(ctx context.Context) CheckResult {
 	start := time.Now()
-	
+
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	
+
 	// Check if memory usage is reasonable (less than 1GB for this example)
 	const maxMemoryMB = 1024
 	currentMemoryMB := m.Alloc / 1024 / 1024
-	
+
 	if currentMemoryMB > maxMemoryMB {
 		return CheckResult{
 			Status:    "unhealthy",
@@ -400,7 +428,7 @@ func (h *HealthHandler) checkSystem(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
+
 	// Check goroutine count (should be reasonable)
 	goroutines := runtime.NumGoroutine()
 	if goroutines > 1000 {
@@ -411,7 +439,7 @@ func (h *HealthHandler) checkSystem(ctx context.Context) CheckResult {
 			Timestamp: time.Now(),
 		}
 	}
-	
+
 	return CheckResult{
 		Status:    "healthy",
 		Message:   "System resources normal",

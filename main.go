@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "github.com/Bengkelin/bengkelin-service/docs"
 	"github.com/Bengkelin/bengkelin-service/internal/api"
 )
 

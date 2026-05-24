@@ -125,8 +125,6 @@ func Setup() *gin.Engine {
 		authGroup.POST("refresh", authHandler.UsersRefreshToken)
 		authGroup.POST("logout", authHandler.UsersLogout)
 		authGroup.POST("logout-all", middleware.AuthJWT(), authHandler.UsersLogoutAll)
-		authGroup.POST("address", middleware.AuthJWT(), authHandler.UsersNewAddress)
-		authGroup.POST("vehicle", middleware.AuthJWT(), authHandler.UsersNewVehicle)
 	}
 
 	// auth mitra group with "auth/mitra" prefix - Apply stricter rate limiting
@@ -169,34 +167,57 @@ func Setup() *gin.Engine {
 		userGroup.DELETE("vehicle/:vehicleId", middleware.AuthJWT(), userHandler.DeleteVehicleUser)
 	}
 
-	// MitraGroup with "mitra" prefix
+	// MitraGroup with "mitras" prefix for mitra profile management
+	mitraProfileGroup := v1Route.Group("mitras")
+	mitraProfileHandler := handlers.GetMitraHandler()
+	{
+		mitraProfileGroup.GET("profile", middleware.AuthJWTMitra(), mitraProfileHandler.GetProfile)
+		mitraProfileGroup.PATCH("profile", middleware.AuthJWTMitra(), mitraProfileHandler.UpdateProfile)
+		mitraProfileGroup.POST("bank", middleware.AuthJWTMitra(), mitraProfileHandler.CreateBank)
+		mitraProfileGroup.PATCH("bank", middleware.AuthJWTMitra(), mitraProfileHandler.UpdateBank)
+	}
+
+	// BengkelGroup with "bengkels" prefix for bengkel management
 	mitraGroup := v1Route.Group("bengkels")
 	mitraHandler := handlers.GetBengkelHandler()
 	{
-		mitraGroup.POST("new", middleware.AuthJWTMitra(), mitraHandler.CreateBengkel)
-		mitraGroup.GET("profile", middleware.AuthJWTMitra(), mitraHandler.GetBengkel)
-		mitraGroup.PATCH("profile", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkel)
-		mitraGroup.GET("", middleware.AuthJWT(), mitraHandler.GetAllBengkelPaginate)
-		mitraGroup.POST("address", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelAddress)
-		mitraGroup.POST("service", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelService)
-		mitraGroup.POST("photo", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelPhoto)
-		mitraGroup.PATCH("service/opsi", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelStatusOpsiService)
-		mitraGroup.PATCH("montir", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelMontir)
-		mitraGroup.PATCH("operasional", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelOperational)
-		mitraGroup.GET("search", middleware.AuthJWT(), mitraHandler.GetBengkelSearchV2Paginate)
-		mitraGroup.POST("testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.CreateBengkelTestimonial)
-		mitraGroup.GET("testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.GetDetailBengkelById)
-		mitraGroup.PATCH("avatar", middleware.AuthJWTMitra(), mitraHandler.UpdateAvatarBengkel)
-		mitraGroup.POST("order/service/:userId", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelOrderService)
-		mitraGroup.GET("order/service/:pesananId", middleware.AuthJWT(), mitraHandler.GetBengkelOrderServiceById)
-		mitraGroup.GET("orders/list/user", middleware.AuthJWT(), mitraHandler.GetAllOrderUserPaginate)
-		mitraGroup.GET("orders/list/mitra", middleware.AuthJWTMitra(), mitraHandler.GetAllBengkelOrderServicePaginate)
-		mitraGroup.GET("order/mitra/service/:pesananId", middleware.AuthJWTMitra(), mitraHandler.GetBengkelOrderServiceByIdMitra)
-		mitraGroup.GET("order/schedule", middleware.AuthJWT(), mitraHandler.GetBengkelOperationalByIdAndDay)
-		mitraGroup.PATCH("order/service/:pesananId", middleware.AuthJWT(), mitraHandler.UpdateBengkelOrderServiceById)
-		mitraGroup.PATCH("order/status/:pesananId", middleware.AuthJWTMitra(), mitraHandler.UpdateStatusOrderService)
-		mitraGroup.GET("order/user/:userId", middleware.AuthJWTMitra(), mitraHandler.GetDetailUserById)
-		mitraGroup.GET("nearest", middleware.AuthJWT(), mitraHandler.GetNearestBengkelPaginate)
+		// Public routes (no authentication required)
+		mitraGroup.GET("", mitraHandler.GetAllBengkelPublic)                    // Public bengkel list
+		mitraGroup.GET("/search", mitraHandler.GetBengkelSearchPublic)          // Public bengkel search
+		
+		// Flexible authentication - Enhanced data when authenticated, basic data when anonymous
+		mitraGroup.GET("/:id", middleware.AuthJWTOptional(), mitraHandler.GetBengkelDetailForUser)            // Flexible bengkel detail
+		// Authenticated user routes
+		mitraGroup.GET("/user/list", middleware.AuthJWT(), mitraHandler.GetAllBengkelPaginate)           // Authenticated bengkel list
+		mitraGroup.GET("/search/user", middleware.AuthJWT(), mitraHandler.GetBengkelSearchV2Paginate)    // Authenticated search
+		mitraGroup.GET("/nearest", middleware.AuthJWT(), mitraHandler.GetNearestBengkelPaginate)         // Nearest bengkels
+		mitraGroup.POST("/testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.CreateBengkelTestimonial)
+		mitraGroup.GET("/testimoni/:bengkelId", middleware.AuthJWT(), mitraHandler.GetDetailBengkelById)
+		mitraGroup.GET("/order/schedule", middleware.AuthJWT(), mitraHandler.GetBengkelOperationalByIdAndDay)
+		mitraGroup.GET("/orders/list/user", middleware.AuthJWT(), mitraHandler.GetAllOrderUserPaginate)
+		mitraGroup.GET("/order/service/:pesananId", middleware.AuthJWT(), mitraHandler.GetBengkelOrderServiceById)
+		mitraGroup.PATCH("/order/service/:pesananId", middleware.AuthJWT(), mitraHandler.UpdateBengkelOrderServiceById)
+
+		// mitra or user can access endpoint
+		mitraGroup.POST("/order/service/:userId", middleware.AuthJWTFlexible(), mitraHandler.CreateBengkelOrderService)  // Mitra creates order for user
+		mitraGroup.POST("/order/service", middleware.AuthJWTFlexible(), mitraHandler.CreateBengkelOrderService)          // User creates order for themselves
+		
+		// Mitra-only routes (bengkel owner/management)
+		mitraGroup.POST("/new", middleware.AuthJWTMitra(), mitraHandler.CreateBengkel)
+		mitraGroup.GET("/profile", middleware.AuthJWTMitra(), mitraHandler.GetBengkel)
+		mitraGroup.PATCH("/profile", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkel)
+		mitraGroup.POST("/address", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelAddress)
+		mitraGroup.POST("/service", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelService)
+		mitraGroup.PATCH("/service", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelService)
+		mitraGroup.POST("/photo", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelPhoto)
+		mitraGroup.PATCH("/service/opsi", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelStatusOpsiService)
+		mitraGroup.PATCH("/montir", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelMontir)
+		mitraGroup.PATCH("/operasional", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelOperational)
+		mitraGroup.PATCH("/avatar", middleware.AuthJWTMitra(), mitraHandler.UpdateAvatarBengkel)
+		mitraGroup.GET("/orders/list/mitra", middleware.AuthJWTMitra(), mitraHandler.GetAllBengkelOrderServicePaginate)
+		mitraGroup.GET("/order/mitra/service/:pesananId", middleware.AuthJWTMitra(), mitraHandler.GetBengkelOrderServiceByIdMitra)
+		mitraGroup.PATCH("/order/status/:pesananId", middleware.AuthJWTMitra(), mitraHandler.UpdateStatusOrderService)
+		mitraGroup.GET("/order/user/:userId", middleware.AuthJWTMitra(), mitraHandler.GetDetailUserById)
 	}
 
 	// ChatGroup with "chat" prefix
@@ -217,7 +238,7 @@ func Setup() *gin.Engine {
 	adminGroup := v1Route.Group("admins")
 	adminHandler := handlers.GetAdminFeeHandler()
 	{
-		adminGroup.POST("fee", adminHandler.CreateAdminFee)
+		adminGroup.POST("fee", middleware.AuthJWTAdmin(), adminHandler.CreateAdminFee)
 	}
 
 	return app

@@ -1,6 +1,8 @@
 package v2
 
 import (
+	"context"
+	"time"
 	"github.com/Bengkelin/bengkelin-service/internal/api/handlers"
 	"github.com/Bengkelin/bengkelin-service/internal/api/middleware"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
@@ -46,8 +48,38 @@ func SetupV2Routes(app *gin.Engine) {
 	userRepo := repository.GetUserRepository()
 	bengkelRepo := repository.GetBengkelRepository()
 	
-	// Initialize message broker
-	messageBroker := service.NewRedisBroker(redisClient)
+	// Initialize message broker with fallback
+	var messageBroker service.MessageBroker
+	if redisClient != nil && redisClient.IsConnected() {
+		// Try to use Redis broker
+		redisBroker := service.NewRedisBroker(redisClient)
+		messageBroker = redisBroker
+		applog.InfoCtx(context.Background(), "Using Redis message broker")
+		
+		// CRITICAL: Test Redis pub/sub functionality on startup
+		testCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		
+		// Type assert to access debugging methods
+		if debugger, ok := redisBroker.(service.RedisBrokerDebugger); ok {
+			if err := debugger.TestRedisPubSub(testCtx); err != nil {
+				applog.LogErrorCtx(context.Background(), err, "Redis pub/sub test failed, falling back to in-memory broker")
+				messageBroker = service.NewInMemoryBroker()
+			} else {
+				applog.InfoCtx(context.Background(), "Redis pub/sub test successful")
+				// Log initial Redis state
+				debugger.LogRedisState(context.Background())
+			}
+		}
+	} else {
+		// Fallback to in-memory broker
+		messageBroker = service.NewInMemoryBroker()
+		if redisClient == nil {
+			applog.InfoCtx(context.Background(), "Redis client not initialized, using in-memory message broker")
+		} else {
+			applog.InfoCtx(context.Background(), "Redis connection failed, using in-memory message broker")
+		}
+	}
 	
 	// Initialize services
 	chatService := service.NewChatV2Service(chatRepo, userRepo, bengkelRepo, messageBroker)
@@ -85,47 +117,32 @@ func SetupV2Routes(app *gin.Engine) {
 		roomGroup.GET("/:roomId/messages", middleware.AuthJWT(), chatHandler.GetRoomMessages)
 	}
 
-	// Bengkel (Mitra) room endpoints
+	// Bengkel (Mitra) room endpoints - Use flexible auth to match handlers
 	bengkelRoomGroup := chatGroup.Group("/bengkel/rooms")
 	{
-		bengkelRoomGroup.GET("", middleware.AuthJWTMitra(), chatHandler.GetBengkelChatRooms)
-		bengkelRoomGroup.GET("/:roomId", middleware.AuthJWTMitra(), chatHandler.GetChatRoom)
-		bengkelRoomGroup.GET("/:roomId/messages", middleware.AuthJWTMitra(), chatHandler.GetRoomMessages)
+		bengkelRoomGroup.GET("", middleware.AuthJWTMitra(), chatHandler.GetBengkelChatRooms) // Keep mitra-specific
+		bengkelRoomGroup.GET("/:roomId", middleware.AuthJWTFlexible(), chatHandler.GetChatRoom)
+		bengkelRoomGroup.GET("/:roomId/messages", middleware.AuthJWTFlexible(), chatHandler.GetRoomMessages)
 	}
 
 	// Message endpoints (accessible by both users and mitras)
 	messageGroup := chatGroup.Group("/messages")
 	{
-		// User message endpoints
-		messageGroup.POST("", middleware.AuthJWT(), chatHandler.SendMessage)
-		messageGroup.POST("/file", middleware.AuthJWT(), chatHandler.SendFileMessage)
-		messageGroup.PATCH("/:messageId", middleware.AuthJWT(), chatHandler.EditMessage)
-		messageGroup.DELETE("/:messageId", middleware.AuthJWT(), chatHandler.DeleteMessage)
-		messageGroup.POST("/read", middleware.AuthJWT(), chatHandler.MarkMessagesAsRead)
-		
-		// Mitra message endpoints (same handlers, different middleware)
-		mitraMessageGroup := messageGroup.Group("/mitra")
-		{
-			mitraMessageGroup.POST("", middleware.AuthJWTMitra(), chatHandler.SendMessage)
-			mitraMessageGroup.POST("/file", middleware.AuthJWTMitra(), chatHandler.SendFileMessage)
-			mitraMessageGroup.PATCH("/:messageId", middleware.AuthJWTMitra(), chatHandler.EditMessage)
-			mitraMessageGroup.DELETE("/:messageId", middleware.AuthJWTMitra(), chatHandler.DeleteMessage)
-			mitraMessageGroup.POST("/read", middleware.AuthJWTMitra(), chatHandler.MarkMessagesAsRead)
-		}
+		messageGroup.POST("", middleware.AuthJWTFlexible(), chatHandler.SendMessage)
+		messageGroup.POST("/file", middleware.AuthJWTFlexible(), chatHandler.SendFileMessage)
+		messageGroup.PATCH("/:messageId", middleware.AuthJWTFlexible(), chatHandler.EditMessage)
+		messageGroup.DELETE("/:messageId", middleware.AuthJWTFlexible(), chatHandler.DeleteMessage)
+		messageGroup.POST("/read", middleware.AuthJWTFlexible(), chatHandler.MarkMessagesAsRead)
 	}
 
-	// Real-time endpoints
+	// Real-time endpoints (accessible by both users and mitras)
 	realtimeGroup := chatGroup.Group("/realtime")
 	{
-		// User real-time endpoints
-		realtimeGroup.POST("/typing", middleware.AuthJWT(), chatHandler.SendTypingIndicator)
-		
-		// Mitra real-time endpoints
-		mitraRealtimeGroup := realtimeGroup.Group("/mitra")
-		{
-			mitraRealtimeGroup.POST("/typing", middleware.AuthJWTMitra(), chatHandler.SendTypingIndicator)
-		}
+		realtimeGroup.POST("/typing", middleware.AuthJWTFlexible(), chatHandler.SendTypingIndicator)
 	}
+
+	// Polling endpoint for better mobile performance
+	chatGroup.GET("/poll", middleware.AuthJWTFlexible(), chatHandler.PollNewMessages)
 
 	applog.Info("Chat V2 routes initialized successfully")
 }
@@ -179,21 +196,21 @@ func SetupV2RoutesWithCustomDependencies(
 	// WebSocket endpoint
 	chatGroup.GET("/ws", wsHandler.HandleWebSocket)
 
-	// Chat room endpoints
+	// Chat room endpoints - Use flexible auth for both users and mitras
 	roomGroup := chatGroup.Group("/rooms")
 	{
-		roomGroup.POST("", middleware.AuthJWT(), chatHandler.CreateOrGetChatRoom)
-		roomGroup.GET("", middleware.AuthJWT(), chatHandler.GetUserChatRooms)
-		roomGroup.GET("/:roomId", middleware.AuthJWT(), chatHandler.GetChatRoom)
-		roomGroup.GET("/:roomId/messages", middleware.AuthJWT(), chatHandler.GetRoomMessages)
+		roomGroup.POST("", middleware.AuthJWTFlexible(), chatHandler.CreateOrGetChatRoom)
+		roomGroup.GET("", middleware.AuthJWT(), chatHandler.GetUserChatRooms) // Keep user-specific
+		roomGroup.GET("/:roomId", middleware.AuthJWTFlexible(), chatHandler.GetChatRoom)
+		roomGroup.GET("/:roomId/messages", middleware.AuthJWTFlexible(), chatHandler.GetRoomMessages)
 	}
 
-	// Bengkel room endpoints
+	// Bengkel room endpoints - Use flexible auth to match handlers
 	bengkelRoomGroup := chatGroup.Group("/bengkel/rooms")
 	{
-		bengkelRoomGroup.GET("", middleware.AuthJWTMitra(), chatHandler.GetBengkelChatRooms)
-		bengkelRoomGroup.GET("/:roomId", middleware.AuthJWTMitra(), chatHandler.GetChatRoom)
-		bengkelRoomGroup.GET("/:roomId/messages", middleware.AuthJWTMitra(), chatHandler.GetRoomMessages)
+		bengkelRoomGroup.GET("", middleware.AuthJWTMitra(), chatHandler.GetBengkelChatRooms) // Keep mitra-specific
+		bengkelRoomGroup.GET("/:roomId", middleware.AuthJWTFlexible(), chatHandler.GetChatRoom)
+		bengkelRoomGroup.GET("/:roomId/messages", middleware.AuthJWTFlexible(), chatHandler.GetRoomMessages)
 	}
 
 	// Message endpoints
@@ -225,6 +242,9 @@ func SetupV2RoutesWithCustomDependencies(
 			mitraRealtimeGroup.POST("/typing", middleware.AuthJWTMitra(), chatHandler.SendTypingIndicator)
 		}
 	}
+
+	// Polling endpoint for better mobile performance
+	chatGroup.GET("/poll", middleware.AuthJWTFlexible(), chatHandler.PollNewMessages)
 
 	applog.Info("Chat V2 routes initialized successfully with custom dependencies")
 }

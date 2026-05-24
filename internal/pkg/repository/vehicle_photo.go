@@ -1,32 +1,36 @@
 package repository
 
 import (
+	"context"
+	"sync"
+
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 )
 
 var (
 	vehiclePhotoRepository *VehiclePhotoRepository
+	vehiclePhotoOnce       sync.Once
 )
 
 type VehiclePhotoRepositoryInterface interface {
-	CreateVehiclePhoto(vehiclePicture models.VehiclePhoto) (models.VehiclePhoto, error)
-	UpdateVehiclePhotoById(vehiclePhotoId uint, vehiclePhoto *models.VehiclePhoto) error
-	GetVehiclePhotoById(vehicleId uint) (*models.VehiclePhoto, error)
+	CreateVehiclePhoto(ctx context.Context, vehiclePicture models.VehiclePhoto) (models.VehiclePhoto, error)
+	UpdateVehiclePhotoById(ctx context.Context, vehiclePhotoId uint, vehiclePhoto *models.VehiclePhoto) error
+	GetVehiclePhotoById(ctx context.Context, vehicleId uint) (*models.VehiclePhoto, error)
 }
 
 type VehiclePhotoRepository struct{}
 
 func GetVehiclePhotoRepository() VehiclePhotoRepositoryInterface {
-	if vehiclePhotoRepository == nil {
+	vehiclePhotoOnce.Do(func() {
 		vehiclePhotoRepository = &VehiclePhotoRepository{}
-	}
+	})
 	return vehiclePhotoRepository
 }
 
 // CreateVehiclePhoto implements VehiclePhotoRepositoryInterface.
-func (repo *VehiclePhotoRepository) CreateVehiclePhoto(vehiclePicture models.VehiclePhoto) (models.VehiclePhoto, error) {
-	err := Create(&vehiclePicture)
+func (repo *VehiclePhotoRepository) CreateVehiclePhoto(ctx context.Context, vehiclePicture models.VehiclePhoto) (models.VehiclePhoto, error) {
+	err := Create(ctx, &vehiclePicture)
 	if err != nil {
 		return models.VehiclePhoto{}, err
 	}
@@ -34,8 +38,8 @@ func (repo *VehiclePhotoRepository) CreateVehiclePhoto(vehiclePicture models.Veh
 }
 
 // UpdateVehiclePhotoById implements VehiclePhotoRepositoryInterface.
-func (*VehiclePhotoRepository) UpdateVehiclePhotoById(vehiclePhotoId uint, vehiclePhoto *models.VehiclePhoto) error {
-	err := db.GetDB().Model(&models.VehiclePhoto{}).Where("id = ?", vehiclePhotoId).Updates(vehiclePhoto).Error
+func (*VehiclePhotoRepository) UpdateVehiclePhotoById(ctx context.Context, vehiclePhotoId uint, vehiclePhoto *models.VehiclePhoto) error {
+	err := db.GetDB().WithContext(ctx).Model(&models.VehiclePhoto{}).Where("id = ?", vehiclePhotoId).Updates(vehiclePhoto).Error
 
 	if err != nil {
 		return err
@@ -44,11 +48,11 @@ func (*VehiclePhotoRepository) UpdateVehiclePhotoById(vehiclePhotoId uint, vehic
 }
 
 // GetVehiclePhotoById implements VehiclePhotoRepositoryInterface.
-func (*VehiclePhotoRepository) GetVehiclePhotoById(vehicleId uint) (*models.VehiclePhoto, error) {
+func (*VehiclePhotoRepository) GetVehiclePhotoById(ctx context.Context, vehicleId uint) (*models.VehiclePhoto, error) {
 	var vehiclePhoto models.VehiclePhoto
 	where := models.VehiclePhoto{}
 	where.VehicleID = vehicleId
-	_, err := First(where, &vehiclePhoto, nil)
+	_, err := First(ctx, where, &vehiclePhoto, nil)
 	if err != nil {
 		return nil, err
 	}

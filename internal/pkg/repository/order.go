@@ -1,35 +1,39 @@
 package repository
 
 import (
+	"context"
+	"sync"
+
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 )
 
 var (
 	orderRepository *OrderRepository
+	orderOnce       sync.Once
 )
 
 type OrderRepositoryInterface interface {
-	CreateOrder(order models.Order) (models.Order, error)
-	UpdateOrderById(orderId string, order *models.Order) error
-	GetOrderById(orderId string) (*models.Order, error)
-	GetDetailOrderById(OrderId, userId string) (*models.Order, error)
-	GetAllOrderUserPaginate(userId string, page, limit int) ([]models.Order, int, error)
-	GetAllOrderMitraPaginate(bengkelId string, page, limit int) ([]models.Order, int, error)
+	CreateOrder(ctx context.Context, order models.Order) (models.Order, error)
+	UpdateOrderById(ctx context.Context, orderId string, order *models.Order) error
+	GetOrderById(ctx context.Context, orderId string) (*models.Order, error)
+	GetDetailOrderById(ctx context.Context, OrderId, userId string) (*models.Order, error)
+	GetAllOrderUserPaginate(ctx context.Context, userId string, page, limit int) ([]models.Order, int, error)
+	GetAllOrderMitraPaginate(ctx context.Context, bengkelId string, page, limit int) ([]models.Order, int, error)
 }
 
 type OrderRepository struct{}
 
 func GetOrderRepository() OrderRepositoryInterface {
-	if orderRepository == nil {
+	orderOnce.Do(func() {
 		orderRepository = &OrderRepository{}
-	}
+	})
 	return orderRepository
 }
 
 // CreateOrder implements OrderRepositoryInterface.
-func (repo *OrderRepository) CreateOrder(Order models.Order) (models.Order, error) {
-	err := db.GetDB().Create(&Order).Error
+func (repo *OrderRepository) CreateOrder(ctx context.Context, Order models.Order) (models.Order, error) {
+	err := db.GetDB().WithContext(ctx).Create(&Order).Error
 	if err != nil {
 		return models.Order{}, err
 	}
@@ -37,8 +41,8 @@ func (repo *OrderRepository) CreateOrder(Order models.Order) (models.Order, erro
 }
 
 // UpdateOrderById implements OrderRepositoryInterface.
-func (*OrderRepository) UpdateOrderById(OrderId string, Order *models.Order) error {
-	err := db.GetDB().Model(&models.Order{}).Where("id = ?", OrderId).Updates(Order).Error
+func (*OrderRepository) UpdateOrderById(ctx context.Context, OrderId string, Order *models.Order) error {
+	err := db.GetDB().WithContext(ctx).Model(&models.Order{}).Where("id = ?", OrderId).Updates(Order).Error
 
 	if err != nil {
 		return err
@@ -47,16 +51,16 @@ func (*OrderRepository) UpdateOrderById(OrderId string, Order *models.Order) err
 }
 
 // GetAllOrderUserPaginate implements OrderRepositoryInterface.
-func (*OrderRepository) GetAllOrderUserPaginate(userId string, page, limit int) ([]models.Order, int, error) {
+func (*OrderRepository) GetAllOrderUserPaginate(ctx context.Context, userId string, page, limit int) ([]models.Order, int, error) {
 	var Orders []models.Order
 	var count int64
 
-	err := db.GetDB().Model(&models.Order{}).Where("user_id = ?", userId).Count(&count).Error
+	err := db.GetDB().WithContext(ctx).Model(&models.Order{}).Where("user_id = ?", userId).Count(&count).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	err = db.GetDB().Preload("OrderServices").Preload("User").Preload("Bengkel").Preload("Bengkel.Addresses").Preload("Vehicle").Where("user_id = ?", userId).Offset((page - 1) * limit).Limit(limit).Find(&Orders).Error
+	err = db.GetDB().WithContext(ctx).Preload("OrderServices").Preload("User").Preload("Bengkel").Preload("Bengkel.Addresses").Preload("Vehicle").Where("user_id = ?", userId).Offset((page - 1) * limit).Limit(limit).Find(&Orders).Error
 
 	if err != nil {
 		return nil, 0, err
@@ -66,17 +70,17 @@ func (*OrderRepository) GetAllOrderUserPaginate(userId string, page, limit int) 
 }
 
 // GetAllOrderMitraPaginate implements OrderRepositoryInterface.
-func (*OrderRepository) GetAllOrderMitraPaginate(bengkelId string, page, limit int) ([]models.Order, int, error) {
+func (*OrderRepository) GetAllOrderMitraPaginate(ctx context.Context, bengkelId string, page, limit int) ([]models.Order, int, error) {
 	var Orders []models.Order
 	var count int64
 
-	err := db.GetDB().Model(&models.Order{}).Where("bengkel_id = ?", bengkelId).Count(&count).Error
+	err := db.GetDB().WithContext(ctx).Model(&models.Order{}).Where("bengkel_id = ?", bengkelId).Count(&count).Error
 
 	if err != nil {
 		return nil, 0, err
 	}
 
-	err = db.GetDB().Preload("OrderServices").Preload("User").Preload("Bengkel").Preload("Bengkel.Addresses").Preload("Vehicle").Where("bengkel_id = ?", bengkelId).Offset((page - 1) * limit).Limit(limit).Find(&Orders).Error
+	err = db.GetDB().WithContext(ctx).Preload("OrderServices").Preload("User").Preload("Bengkel").Preload("Bengkel.Addresses").Preload("Vehicle").Where("bengkel_id = ?", bengkelId).Offset((page - 1) * limit).Limit(limit).Find(&Orders).Error
 
 	if err != nil {
 		return nil, 0, err
@@ -86,11 +90,11 @@ func (*OrderRepository) GetAllOrderMitraPaginate(bengkelId string, page, limit i
 }
 
 // GetOrderById implements OrderRepositoryInterface.
-func (*OrderRepository) GetOrderById(OrderId string) (*models.Order, error) {
+func (*OrderRepository) GetOrderById(ctx context.Context, OrderId string) (*models.Order, error) {
 	var Order models.Order
 	where := models.Order{}
 	where.ID = OrderId
-	_, err := First(where, &Order, []string{"OrderServices", "User", "Bengkel", "Bengkel.Addresses", "Vehicle"})
+	_, err := First(ctx, where, &Order, []string{"OrderServices", "User", "Bengkel", "Bengkel.Addresses", "Vehicle"})
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +102,9 @@ func (*OrderRepository) GetOrderById(OrderId string) (*models.Order, error) {
 }
 
 // GetDetailOrderById implements OrderRepositoryInterface.
-func (*OrderRepository) GetDetailOrderById(OrderId, userId string) (*models.Order, error) {
+func (*OrderRepository) GetDetailOrderById(ctx context.Context, OrderId, userId string) (*models.Order, error) {
 	var Order models.Order
-	err := db.GetDB().
+	err := db.GetDB().WithContext(ctx).
 		Model(&models.Order{}).
 		Preload("OrderServices").
 		Preload("User").
@@ -114,5 +118,3 @@ func (*OrderRepository) GetDetailOrderById(OrderId, userId string) (*models.Orde
 	}
 	return &Order, nil
 }
-
-//

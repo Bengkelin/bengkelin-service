@@ -3,8 +3,11 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
+	appErrors "github.com/Bengkelin/bengkelin-service/internal/pkg/errors"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
 	"github.com/Bengkelin/bengkelin-service/pkg/helpers"
 	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
@@ -13,14 +16,17 @@ import (
 )
 
 type ChatV2Handler struct {
-	chatService service.ChatV2ServiceInterface
-	validator   *validator.Validate
+	BaseHandler
+	chatService   service.ChatV2ServiceInterface
+	uploadService *service.FileUploadService
+	validator     *validator.Validate
 }
 
 func NewChatV2Handler(chatService service.ChatV2ServiceInterface) *ChatV2Handler {
 	return &ChatV2Handler{
-		chatService: chatService,
-		validator:   validator.New(),
+		chatService:   chatService,
+		uploadService: service.NewFileUploadService(),
+		validator:     validator.New(),
 	}
 }
 
@@ -38,30 +44,30 @@ func NewChatV2Handler(chatService service.ChatV2ServiceInterface) *ChatV2Handler
 // @Failure 500 {object} helpers.ErrorResponse
 // @Router /api/v2/chat/rooms [post]
 func (h *ChatV2Handler) CreateOrGetChatRoom(c *gin.Context) {
+	userId := c.MustGet("id").(string)
 	var req dto.CreateChatRoomRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Invalid request body")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Invalid request body", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
 	if err := h.validator.Struct(req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Validation failed")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Validation failed", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
-	userID := c.GetString("user_id")
-	if userID == "" {
+	if userId == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "User ID not found in context")
-		helpers.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "User ID not found")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("user ID not found"))
 		return
 	}
 
-	response, err := h.chatService.CreateOrGetChatRoom(c.Request.Context(), userID, req.BengkelID)
+	response, err := h.chatService.CreateOrGetChatRoom(c.Request.Context(), userId, req.BengkelID)
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to create or get chat room")
-		helpers.ErrorResponse(c, http.StatusInternalServerError, "Failed to create or get chat room", err.Error())
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
 		return
 	}
 
@@ -83,10 +89,10 @@ func (h *ChatV2Handler) CreateOrGetChatRoom(c *gin.Context) {
 // @Failure 500 {object} helpers.ErrorResponse
 // @Router /api/v2/chat/rooms [get]
 func (h *ChatV2Handler) GetUserChatRooms(c *gin.Context) {
-	userID := c.GetString("user_id")
+	userID := c.MustGet("id").(string)
 	if userID == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "User ID not found in context")
-		helpers.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "User ID not found")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("user ID not found"))
 		return
 	}
 
@@ -108,7 +114,7 @@ func (h *ChatV2Handler) GetUserChatRooms(c *gin.Context) {
 	response, err := h.chatService.GetUserChatRooms(c.Request.Context(), userID, req)
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to get user chat rooms")
-		helpers.ErrorResponse(c, http.StatusInternalServerError, "Failed to get chat rooms", err.Error())
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
 		return
 	}
 
@@ -130,10 +136,10 @@ func (h *ChatV2Handler) GetUserChatRooms(c *gin.Context) {
 // @Failure 500 {object} helpers.ErrorResponse
 // @Router /api/v2/chat/bengkel/rooms [get]
 func (h *ChatV2Handler) GetBengkelChatRooms(c *gin.Context) {
-	mitraID := c.GetString("mitra_id")
+	mitraID := c.MustGet("id").(string)
 	if mitraID == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "Mitra ID not found in context")
-		helpers.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "Mitra ID not found")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("mitra ID not found"))
 		return
 	}
 
@@ -142,7 +148,7 @@ func (h *ChatV2Handler) GetBengkelChatRooms(c *gin.Context) {
 	bengkelID := c.Query("bengkel_id")
 	if bengkelID == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "Bengkel ID not provided")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Bad request", "Bengkel ID is required")
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("Bengkel ID is required"))
 		return
 	}
 
@@ -164,7 +170,7 @@ func (h *ChatV2Handler) GetBengkelChatRooms(c *gin.Context) {
 	response, err := h.chatService.GetBengkelChatRooms(c.Request.Context(), bengkelID, req)
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to get bengkel chat rooms")
-		helpers.ErrorResponse(c, http.StatusInternalServerError, "Failed to get chat rooms", err.Error())
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
 		return
 	}
 
@@ -188,29 +194,41 @@ func (h *ChatV2Handler) GetBengkelChatRooms(c *gin.Context) {
 func (h *ChatV2Handler) GetChatRoom(c *gin.Context) {
 	roomID := c.Param("roomId")
 	if roomID == "" {
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Bad request", "Room ID is required")
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("Room ID is required"))
 		return
 	}
 
-	userID := c.GetString("user_id")
-	userType := "user"
+	userID := c.MustGet("id").(string)
+	userType := c.GetString("user_type")
 	
-	// Check if it's a mitra request
-	if mitraID := c.GetString("mitra_id"); mitraID != "" {
-		userID = mitraID
-		userType = "mitra"
+	// Default to user if user_type is not set
+	if userType == "" {
+		userType = "user"
 	}
 
 	if userID == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "User ID not found in context")
-		helpers.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "User ID not found")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("user ID not found"))
 		return
 	}
 
 	response, err := h.chatService.GetChatRoomByID(c.Request.Context(), roomID, userID, userType)
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to get chat room")
-		helpers.ErrorResponse(c, http.StatusInternalServerError, "Failed to get chat room", err.Error())
+		
+		// Check if it's an authorization error
+		if strings.Contains(err.Error(), "unauthorized") || strings.Contains(err.Error(), "does not have access") {
+			h.HandleError(c, appErrors.ErrForbidden.WithDetails(err.Error()))
+			return
+		}
+		
+		// Check if it's a not found error
+		if strings.Contains(err.Error(), "not found") {
+			h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
+			return
+		}
+		
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
 		return
 	}
 
@@ -234,35 +252,34 @@ func (h *ChatV2Handler) SendMessage(c *gin.Context) {
 	var req dto.SendMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Invalid request body")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Invalid request body", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
 	if err := h.validator.Struct(req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Validation failed")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Validation failed", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
-	userID := c.GetString("user_id")
-	userType := "user"
+	userID := c.MustGet("id").(string)
+	userType := c.GetString("user_type")
 	
-	// Check if it's a mitra request
-	if mitraID := c.GetString("mitra_id"); mitraID != "" {
-		userID = mitraID
-		userType = "mitra"
+	// Default to user if user_type is not set
+	if userType == "" {
+		userType = "user"
 	}
 
 	if userID == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "User ID not found in context")
-		helpers.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "User ID not found")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("user ID not found"))
 		return
 	}
 
 	response, err := h.chatService.SendMessage(c.Request.Context(), userID, userType, req)
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to send message")
-		helpers.ErrorResponse(c, http.StatusInternalServerError, "Failed to send message", err.Error())
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
 		return
 	}
 
@@ -287,36 +304,45 @@ func (h *ChatV2Handler) SendMessage(c *gin.Context) {
 func (h *ChatV2Handler) SendFileMessage(c *gin.Context) {
 	roomID := c.PostForm("room_id")
 	if roomID == "" {
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Bad request", "Room ID is required")
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("Room ID is required"))
 		return
 	}
 
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to get file from request")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Bad request", "File is required")
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("File is required"))
 		return
 	}
 	defer file.Close()
 
-	userID := c.GetString("user_id")
-	userType := "user"
-	
-	// Check if it's a mitra request
-	if mitraID := c.GetString("mitra_id"); mitraID != "" {
-		userID = mitraID
-		userType = "mitra"
+	userID := c.MustGet("id").(string)
+	userType := c.GetString("user_type")
+
+	// Default to user if user_type is not set
+	if userType == "" {
+		userType = "user"
 	}
 
 	if userID == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "User ID not found in context")
-		helpers.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "User ID not found")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("user ID not found"))
 		return
 	}
 
-	// TODO: Upload file to storage service (Cloudinary, S3, etc.)
-	// For now, we'll use a placeholder URL
-	fileURL := "https://example.com/files/" + header.Filename
+	// Determine protocol from request
+	protocol := "http"
+	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+		protocol = "https"
+	}
+
+	uploadResult, err := h.uploadService.UploadFile(header, service.PhotoUploadConfig, protocol, c.Request.Host)
+	if err != nil {
+		applog.LogErrorCtx(c.Request.Context(), err, "Failed to upload file")
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("failed to upload file: "+err.Error()))
+		return
+	}
+	fileURL := uploadResult.URL
 
 	var replyToID *string
 	if replyTo := c.PostForm("reply_to_id"); replyTo != "" {
@@ -332,14 +358,14 @@ func (h *ChatV2Handler) SendFileMessage(c *gin.Context) {
 
 	if err := h.validator.Struct(req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Validation failed")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Validation failed", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
 	response, err := h.chatService.SendFileMessage(c.Request.Context(), userID, userType, req, fileURL)
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to send file message")
-		helpers.ErrorResponse(c, http.StatusInternalServerError, "Failed to send file message", err.Error())
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
 		return
 	}
 
@@ -348,15 +374,15 @@ func (h *ChatV2Handler) SendFileMessage(c *gin.Context) {
 
 // GetRoomMessages gets messages from a chat room
 // @Summary Get room messages
-// @Description Get messages from a chat room with pagination
+// @Description Get messages from a chat room with optimized cursor-based pagination
 // @Tags Chat V2
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param roomId path string true "Room ID"
-// @Param page query int false "Page number" default(1)
 // @Param limit query int false "Items per page" default(50)
-// @Param before query string false "Get messages before this message ID"
+// @Param before query string false "Get messages before this timestamp (RFC3339 format)"
+// @Param after query string false "Get messages after this timestamp (RFC3339 format)"
 // @Success 200 {object} dto.PaginatedMessagesResponse
 // @Failure 400 {object} helpers.ErrorResponse
 // @Failure 401 {object} helpers.ErrorResponse
@@ -365,57 +391,80 @@ func (h *ChatV2Handler) SendFileMessage(c *gin.Context) {
 func (h *ChatV2Handler) GetRoomMessages(c *gin.Context) {
 	roomID := c.Param("roomId")
 	if roomID == "" {
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Bad request", "Room ID is required")
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("Room ID is required"))
 		return
 	}
 
-	userID := c.GetString("user_id")
-	userType := "user"
+	// DEBUG: Log all context values
+	applog.InfoCtx(c.Request.Context(), "DEBUG: Context values", 
+		"id", c.GetString("id"),
+		"user_id", c.GetString("user_id"), 
+		"mitra_id", c.GetString("mitra_id"),
+		"user_type", c.GetString("user_type"))
+
+	userId := c.MustGet("id").(string)
+	userType := c.GetString("user_type")
 	
-	// Check if it's a mitra request
-	if mitraID := c.GetString("mitra_id"); mitraID != "" {
-		userID = mitraID
-		userType = "mitra"
+	// Default to user if user_type is not set
+	if userType == "" {
+		userType = "user"
 	}
 
-	if userID == "" {
+	// DEBUG: Log final values
+	applog.InfoCtx(c.Request.Context(), "DEBUG: Final values", 
+		"userId", userId,
+		"userType", userType)
+
+	if userId == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "User ID not found in context")
-		helpers.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "User ID not found")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("user ID not found"))
 		return
 	}
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
-	if page < 1 {
-		page = 1
-	}
 	if limit < 1 || limit > 100 {
 		limit = 50
 	}
 
-	var before *string
+	var before, after *string
 	if beforeParam := c.Query("before"); beforeParam != "" {
 		before = &beforeParam
+	}
+	if afterParam := c.Query("after"); afterParam != "" {
+		after = &afterParam
 	}
 
 	req := dto.GetMessagesRequest{
 		RoomID: roomID,
-		Page:   page,
 		Limit:  limit,
 		Before: before,
+		After:  after,
 	}
 
 	if err := h.validator.Struct(req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Validation failed")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Validation failed", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
-	response, err := h.chatService.GetRoomMessages(c.Request.Context(), roomID, userID, userType, req)
+	response, err := h.chatService.GetRoomMessages(c.Request.Context(), roomID, userId, userType, req)
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to get room messages")
-		helpers.ErrorResponse(c, http.StatusInternalServerError, "Failed to get messages", err.Error())
+		
+		// Check if it's an authorization error
+		if strings.Contains(err.Error(), "unauthorized") || strings.Contains(err.Error(), "does not have access") {
+			h.HandleError(c, appErrors.ErrForbidden.WithDetails(err.Error()))
+			return
+		}
+		
+		// Check if it's a not found error
+		if strings.Contains(err.Error(), "not found") {
+			h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
+			return
+		}
+		
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
 		return
 	}
 
@@ -441,40 +490,35 @@ func (h *ChatV2Handler) GetRoomMessages(c *gin.Context) {
 func (h *ChatV2Handler) EditMessage(c *gin.Context) {
 	messageID := c.Param("messageId")
 	if messageID == "" {
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Bad request", "Message ID is required")
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("Message ID is required"))
 		return
 	}
 
 	var req dto.EditMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Invalid request body")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Invalid request body", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
 	if err := h.validator.Struct(req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Validation failed")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Validation failed", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
-	userID := c.GetString("user_id")
-	
-	// Check if it's a mitra request
-	if mitraID := c.GetString("mitra_id"); mitraID != "" {
-		userID = mitraID
-	}
+	userID := c.MustGet("id").(string)
 
 	if userID == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "User ID not found in context")
-		helpers.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "User ID not found")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("user ID not found"))
 		return
 	}
 
 	response, err := h.chatService.EditMessage(c.Request.Context(), messageID, userID, req)
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to edit message")
-		helpers.ErrorResponse(c, http.StatusInternalServerError, "Failed to edit message", err.Error())
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
 		return
 	}
 
@@ -499,27 +543,22 @@ func (h *ChatV2Handler) EditMessage(c *gin.Context) {
 func (h *ChatV2Handler) DeleteMessage(c *gin.Context) {
 	messageID := c.Param("messageId")
 	if messageID == "" {
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Bad request", "Message ID is required")
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("Message ID is required"))
 		return
 	}
 
-	userID := c.GetString("user_id")
-	
-	// Check if it's a mitra request
-	if mitraID := c.GetString("mitra_id"); mitraID != "" {
-		userID = mitraID
-	}
+	userID := c.MustGet("id").(string)
 
 	if userID == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "User ID not found in context")
-		helpers.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "User ID not found")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("user ID not found"))
 		return
 	}
 
 	err := h.chatService.DeleteMessage(c.Request.Context(), messageID, userID)
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to delete message")
-		helpers.ErrorResponse(c, http.StatusInternalServerError, "Failed to delete message", err.Error())
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
 		return
 	}
 
@@ -543,33 +582,28 @@ func (h *ChatV2Handler) MarkMessagesAsRead(c *gin.Context) {
 	var req dto.MessageReadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Invalid request body")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Invalid request body", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
 	if err := h.validator.Struct(req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Validation failed")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Validation failed", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
-	userID := c.GetString("user_id")
-	
-	// Check if it's a mitra request
-	if mitraID := c.GetString("mitra_id"); mitraID != "" {
-		userID = mitraID
-	}
+	userID := c.MustGet("id").(string)
 
 	if userID == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "User ID not found in context")
-		helpers.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "User ID not found")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("user ID not found"))
 		return
 	}
 
 	responses, err := h.chatService.MarkMessagesAsRead(c.Request.Context(), userID, req)
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to mark messages as read")
-		helpers.ErrorResponse(c, http.StatusInternalServerError, "Failed to mark messages as read", err.Error())
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
 		return
 	}
 
@@ -593,37 +627,121 @@ func (h *ChatV2Handler) SendTypingIndicator(c *gin.Context) {
 	var req dto.TypingIndicatorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Invalid request body")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Invalid request body", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
 	if err := h.validator.Struct(req); err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Validation failed")
-		helpers.ErrorResponse(c, http.StatusBadRequest, "Validation failed", err.Error())
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
 		return
 	}
 
-	userID := c.GetString("user_id")
-	userType := "user"
+	userID := c.MustGet("id").(string)
+	userType := c.GetString("user_type")
 	
-	// Check if it's a mitra request
-	if mitraID := c.GetString("mitra_id"); mitraID != "" {
-		userID = mitraID
-		userType = "mitra"
+	// Default to user if user_type is not set
+	if userType == "" {
+		userType = "user"
 	}
 
 	if userID == "" {
 		applog.LogErrorCtx(c.Request.Context(), nil, "User ID not found in context")
-		helpers.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "User ID not found")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("user ID not found"))
 		return
 	}
 
 	err := h.chatService.HandleTypingIndicator(c.Request.Context(), userID, userType, req)
 	if err != nil {
 		applog.LogErrorCtx(c.Request.Context(), err, "Failed to send typing indicator")
-		helpers.ErrorResponse(c, http.StatusInternalServerError, "Failed to send typing indicator", err.Error())
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
 		return
 	}
 
 	helpers.SuccessResponse(c, http.StatusOK, "Typing indicator sent successfully", nil)
+}
+
+// PollNewMessages polls for new messages in user's chat rooms
+// @Summary Poll for new messages
+// @Description Poll for new messages across all user's chat rooms with optimized performance
+// @Tags Chat V2
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param since query string false "Poll for messages since this timestamp (RFC3339 format)"
+// @Param rooms query string false "Comma-separated list of room IDs to poll (optional, polls all rooms if not provided)"
+// @Param timeout query int false "Polling timeout in seconds" default(30)
+// @Success 200 {object} dto.PollMessagesResponse
+// @Failure 400 {object} helpers.ErrorResponse
+// @Failure 401 {object} helpers.ErrorResponse
+// @Failure 500 {object} helpers.ErrorResponse
+// @Router /api/v2/chat/poll [get]
+func (h *ChatV2Handler) PollNewMessages(c *gin.Context) {
+	userID := c.MustGet("id").(string)
+	userType := c.GetString("user_type")
+	
+	// Default to user if user_type is not set
+	if userType == "" {
+		userType = "user"
+	}
+
+	if userID == "" {
+		applog.LogErrorCtx(c.Request.Context(), nil, "User ID not found in context")
+		h.HandleError(c, appErrors.ErrUnauthorized.WithDetails("user ID not found"))
+		return
+	}
+
+	// Parse query parameters
+	sinceParam := c.Query("since")
+	roomsParam := c.Query("rooms")
+	timeoutParam := c.DefaultQuery("timeout", "30")
+
+	timeout, err := strconv.Atoi(timeoutParam)
+	if err != nil || timeout < 1 || timeout > 60 {
+		timeout = 30 // Default to 30 seconds, max 60 seconds
+	}
+
+	var since *time.Time
+	if sinceParam != "" {
+		if parsed, err := time.Parse(time.RFC3339, sinceParam); err == nil {
+			since = &parsed
+		} else {
+			h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("since must be in RFC3339 format"))
+			return
+		}
+	}
+
+	var roomIDs []string
+	if roomsParam != "" {
+		roomIDs = strings.Split(roomsParam, ",")
+		// Validate room IDs format
+		for _, roomID := range roomIDs {
+			roomID = strings.TrimSpace(roomID)
+			if roomID == "" {
+				h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("room IDs cannot be empty"))
+				return
+			}
+		}
+	}
+
+	req := dto.PollMessagesRequest{
+		Since:   since,
+		RoomIDs: roomIDs,
+		Timeout: timeout,
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		applog.LogErrorCtx(c.Request.Context(), err, "Validation failed")
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails(err.Error()))
+		return
+	}
+
+	response, err := h.chatService.PollNewMessages(c.Request.Context(), userID, userType, req)
+	if err != nil {
+		applog.LogErrorCtx(c.Request.Context(), err, "Failed to poll messages")
+		h.HandleError(c, appErrors.ErrInternalServer.WithDetails(err.Error()))
+		return
+	}
+
+	helpers.SuccessResponse(c, http.StatusOK, "Messages polled successfully", response)
 }

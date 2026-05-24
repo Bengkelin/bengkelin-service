@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
+	appErrors "github.com/Bengkelin/bengkelin-service/internal/pkg/errors"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
 	"github.com/Bengkelin/bengkelin-service/pkg/crypto"
@@ -36,12 +37,12 @@ func NewAuthService(deps ServiceDependencies) AuthServiceInterface {
 
 func (s *AuthService) LoginUser(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error) {
 	applog.InfoCtx(ctx, "User login attempt", "email", req.Email)
-	
-	user, err := s.userRepo.FindUserByEmail(req.Email)
+
+	user, err := s.userRepo.FindUserByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			applog.InfoCtx(ctx, "User login failed - user not found", "email", req.Email)
-			return nil, errors.New("invalid credentials")
+			return nil, appErrors.ErrInvalidCredentials
 		}
 		applog.LogErrorCtx(ctx, err, "User login failed - database error", "email", req.Email)
 		return nil, fmt.Errorf("login failed: %w", err)
@@ -49,7 +50,7 @@ func (s *AuthService) LoginUser(ctx context.Context, req dto.LoginRequest) (*dto
 
 	if !s.passwordHelper.ComparePassword(user.Password, []byte(req.Password)) {
 		applog.InfoCtx(ctx, "User login failed - invalid password", "email", req.Email)
-		return nil, errors.New("invalid credentials")
+		return nil, appErrors.ErrInvalidCredentials
 	}
 
 	tokenPair, err := s.jwtHelper.GenerateTokenPair(user.ID)
@@ -59,7 +60,7 @@ func (s *AuthService) LoginUser(ctx context.Context, req dto.LoginRequest) (*dto
 	}
 
 	applog.InfoCtx(ctx, "User login successful", "user_id", user.ID, "email", req.Email)
-	
+
 	return &dto.AuthResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
@@ -78,21 +79,21 @@ func (s *AuthService) LoginUser(ctx context.Context, req dto.LoginRequest) (*dto
 
 func (s *AuthService) RegisterUser(ctx context.Context, req dto.RegisterUserRequest) (*dto.AuthResponse, error) {
 	applog.InfoCtx(ctx, "User registration attempt", "email", req.Email)
-	
+
 	// Check if passwords match
 	if req.Password != req.ConfirmPassword {
-		return nil, errors.New("passwords do not match")
+		return nil, appErrors.ErrPasswordMismatch
 	}
 
 	// Check if user already exists
-	existingUser, err := s.userRepo.FindUserByEmail(req.Email)
+	existingUser, err := s.userRepo.FindUserByEmail(ctx, req.Email)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		applog.LogErrorCtx(ctx, err, "User registration failed - database error", "email", req.Email)
 		return nil, fmt.Errorf("registration failed: %w", err)
 	}
 	if existingUser != nil {
 		applog.InfoCtx(ctx, "User registration failed - email already exists", "email", req.Email)
-		return nil, errors.New("email already registered")
+		return nil, appErrors.ErrEmailAlreadyExists
 	}
 
 	// Hash password
@@ -112,7 +113,7 @@ func (s *AuthService) RegisterUser(ctx context.Context, req dto.RegisterUserRequ
 		Password:    hashedPassword,
 	}
 
-	createdUser, err := s.userRepo.CreateUser(user)
+	createdUser, err := s.userRepo.CreateUser(ctx, user)
 	if err != nil {
 		applog.LogErrorCtx(ctx, err, "User registration failed - create user error", "email", req.Email)
 		return nil, fmt.Errorf("failed to create user: %w", err)
@@ -126,7 +127,7 @@ func (s *AuthService) RegisterUser(ctx context.Context, req dto.RegisterUserRequ
 	}
 
 	applog.InfoCtx(ctx, "User registration successful", "user_id", createdUser.ID, "email", req.Email)
-	
+
 	return &dto.AuthResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
@@ -144,8 +145,8 @@ func (s *AuthService) RegisterUser(ctx context.Context, req dto.RegisterUserRequ
 
 func (s *AuthService) LoginUserWithGoogle(ctx context.Context, req dto.GoogleAuthRequest) (*dto.AuthResponse, error) {
 	applog.InfoCtx(ctx, "User Google login attempt", "email", req.Email)
-	
-	user, err := s.userRepo.FindUserByEmail(req.Email)
+
+	user, err := s.userRepo.FindUserByEmail(ctx, req.Email)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		applog.LogErrorCtx(ctx, err, "User Google login failed - database error", "email", req.Email)
 		return nil, fmt.Errorf("login failed: %w", err)
@@ -158,8 +159,8 @@ func (s *AuthService) LoginUserWithGoogle(ctx context.Context, req dto.GoogleAut
 			FirstName: req.FirstName,
 			Email:     req.Email,
 		}
-		
-		createdUser, err := s.userRepo.CreateUser(*user)
+
+		createdUser, err := s.userRepo.CreateUser(ctx, *user)
 		if err != nil {
 			applog.LogErrorCtx(ctx, err, "User Google login failed - create user error", "email", req.Email)
 			return nil, fmt.Errorf("failed to create user: %w", err)
@@ -176,7 +177,7 @@ func (s *AuthService) LoginUserWithGoogle(ctx context.Context, req dto.GoogleAut
 	}
 
 	applog.InfoCtx(ctx, "User Google login successful", "user_id", user.ID, "email", req.Email)
-	
+
 	return &dto.AuthResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
@@ -196,12 +197,13 @@ func (s *AuthService) LoginUserWithGoogle(ctx context.Context, req dto.GoogleAut
 
 func (s *AuthService) LoginMitra(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error) {
 	applog.InfoCtx(ctx, "Mitra login attempt", "email", req.Email)
-	
-	mitra, err := s.mitraRepo.FindMitraByEmail(req.Email)
+
+	mitra, err := s.mitraRepo.FindMitraByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			applog.InfoCtx(ctx, "Mitra login failed - mitra not found", "email", req.Email)
-			return nil, errors.New("invalid credentials")
+			// Return a specific error for mitra not registered
+			return nil, appErrors.ErrMitraNotFound.WithDetails("Mitra not registered yet. Please register first.")
 		}
 		applog.LogErrorCtx(ctx, err, "Mitra login failed - database error", "email", req.Email)
 		return nil, fmt.Errorf("login failed: %w", err)
@@ -209,7 +211,7 @@ func (s *AuthService) LoginMitra(ctx context.Context, req dto.LoginRequest) (*dt
 
 	if !s.passwordHelper.ComparePassword(mitra.Password, []byte(req.Password)) {
 		applog.InfoCtx(ctx, "Mitra login failed - invalid password", "email", req.Email)
-		return nil, errors.New("invalid credentials")
+		return nil, appErrors.ErrInvalidCredentials
 	}
 
 	tokenPair, err := s.jwtHelper.GenerateTokenPairMitra(mitra.ID)
@@ -219,7 +221,7 @@ func (s *AuthService) LoginMitra(ctx context.Context, req dto.LoginRequest) (*dt
 	}
 
 	applog.InfoCtx(ctx, "Mitra login successful", "mitra_id", mitra.ID, "email", req.Email)
-	
+
 	return &dto.AuthResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
@@ -239,21 +241,21 @@ func (s *AuthService) LoginMitra(ctx context.Context, req dto.LoginRequest) (*dt
 
 func (s *AuthService) RegisterMitra(ctx context.Context, req dto.RegisterMitraRequest) (*dto.AuthResponse, error) {
 	applog.InfoCtx(ctx, "Mitra registration attempt", "email", req.Email)
-	
+
 	// Check if passwords match
 	if req.Password != req.ConfirmPassword {
-		return nil, errors.New("passwords do not match")
+		return nil, appErrors.ErrPasswordMismatch
 	}
 
 	// Check if mitra already exists
-	existingMitra, err := s.mitraRepo.FindMitraByEmail(req.Email)
+	existingMitra, err := s.mitraRepo.FindMitraByEmail(ctx, req.Email)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		applog.LogErrorCtx(ctx, err, "Mitra registration failed - database error", "email", req.Email)
 		return nil, fmt.Errorf("registration failed: %w", err)
 	}
 	if existingMitra != nil {
 		applog.InfoCtx(ctx, "Mitra registration failed - email already exists", "email", req.Email)
-		return nil, errors.New("email already registered")
+		return nil, appErrors.ErrEmailAlreadyExists
 	}
 
 	// Hash password
@@ -273,7 +275,7 @@ func (s *AuthService) RegisterMitra(ctx context.Context, req dto.RegisterMitraRe
 		Password:    hashedPassword,
 	}
 
-	createdMitra, err := s.mitraRepo.CreateMitra(mitra)
+	createdMitra, err := s.mitraRepo.CreateMitra(ctx, mitra)
 	if err != nil {
 		applog.LogErrorCtx(ctx, err, "Mitra registration failed - create mitra error", "email", req.Email)
 		return nil, fmt.Errorf("failed to create mitra: %w", err)
@@ -287,7 +289,7 @@ func (s *AuthService) RegisterMitra(ctx context.Context, req dto.RegisterMitraRe
 	}
 
 	applog.InfoCtx(ctx, "Mitra registration successful", "mitra_id", createdMitra.ID, "email", req.Email)
-	
+
 	return &dto.AuthResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
@@ -305,8 +307,8 @@ func (s *AuthService) RegisterMitra(ctx context.Context, req dto.RegisterMitraRe
 
 func (s *AuthService) LoginMitraWithGoogle(ctx context.Context, req dto.GoogleAuthRequest) (*dto.AuthResponse, error) {
 	applog.InfoCtx(ctx, "Mitra Google login attempt", "email", req.Email)
-	
-	mitra, err := s.mitraRepo.FindMitraByEmail(req.Email)
+
+	mitra, err := s.mitraRepo.FindMitraByEmail(ctx, req.Email)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		applog.LogErrorCtx(ctx, err, "Mitra Google login failed - database error", "email", req.Email)
 		return nil, fmt.Errorf("login failed: %w", err)
@@ -319,8 +321,8 @@ func (s *AuthService) LoginMitraWithGoogle(ctx context.Context, req dto.GoogleAu
 			FirstName: req.FirstName,
 			Email:     req.Email,
 		}
-		
-		createdMitra, err := s.mitraRepo.CreateMitra(*mitra)
+
+		createdMitra, err := s.mitraRepo.CreateMitra(ctx, *mitra)
 		if err != nil {
 			applog.LogErrorCtx(ctx, err, "Mitra Google login failed - create mitra error", "email", req.Email)
 			return nil, fmt.Errorf("failed to create mitra: %w", err)
@@ -337,7 +339,7 @@ func (s *AuthService) LoginMitraWithGoogle(ctx context.Context, req dto.GoogleAu
 	}
 
 	applog.InfoCtx(ctx, "Mitra Google login successful", "mitra_id", mitra.ID, "email", req.Email)
-	
+
 	return &dto.AuthResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
@@ -356,7 +358,7 @@ func (s *AuthService) LoginMitraWithGoogle(ctx context.Context, req dto.GoogleAu
 
 func (s *AuthService) RefreshUserToken(ctx context.Context, refreshToken string) (*dto.AuthResponse, error) {
 	applog.DebugCtx(ctx, "User token refresh attempt")
-	
+
 	tokenPair, err := s.jwtHelper.RefreshAccessToken(refreshToken)
 	if err != nil {
 		applog.InfoCtx(ctx, "User token refresh failed", "error", err.Error())
@@ -364,7 +366,7 @@ func (s *AuthService) RefreshUserToken(ctx context.Context, refreshToken string)
 	}
 
 	applog.DebugCtx(ctx, "User token refresh successful")
-	
+
 	return &dto.AuthResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
@@ -375,7 +377,7 @@ func (s *AuthService) RefreshUserToken(ctx context.Context, refreshToken string)
 
 func (s *AuthService) RefreshMitraToken(ctx context.Context, refreshToken string) (*dto.AuthResponse, error) {
 	applog.DebugCtx(ctx, "Mitra token refresh attempt")
-	
+
 	tokenPair, err := s.jwtHelper.RefreshAccessTokenMitra(refreshToken)
 	if err != nil {
 		applog.InfoCtx(ctx, "Mitra token refresh failed", "error", err.Error())
@@ -383,7 +385,7 @@ func (s *AuthService) RefreshMitraToken(ctx context.Context, refreshToken string
 	}
 
 	applog.DebugCtx(ctx, "Mitra token refresh successful")
-	
+
 	return &dto.AuthResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
@@ -394,7 +396,7 @@ func (s *AuthService) RefreshMitraToken(ctx context.Context, refreshToken string
 
 func (s *AuthService) LogoutUser(ctx context.Context, refreshToken string) error {
 	applog.DebugCtx(ctx, "User logout attempt")
-	
+
 	err := s.jwtHelper.RevokeRefreshToken(refreshToken)
 	if err != nil {
 		applog.LogErrorCtx(ctx, err, "User logout failed")
@@ -407,7 +409,7 @@ func (s *AuthService) LogoutUser(ctx context.Context, refreshToken string) error
 
 func (s *AuthService) LogoutMitra(ctx context.Context, refreshToken string) error {
 	applog.DebugCtx(ctx, "Mitra logout attempt")
-	
+
 	err := s.jwtHelper.RevokeRefreshToken(refreshToken)
 	if err != nil {
 		applog.LogErrorCtx(ctx, err, "Mitra logout failed")
@@ -420,7 +422,7 @@ func (s *AuthService) LogoutMitra(ctx context.Context, refreshToken string) erro
 
 func (s *AuthService) LogoutAllUserDevices(ctx context.Context, userID string) error {
 	applog.InfoCtx(ctx, "User logout all devices", "user_id", userID)
-	
+
 	err := s.jwtHelper.RevokeAllUserTokens(userID)
 	if err != nil {
 		applog.LogErrorCtx(ctx, err, "User logout all devices failed", "user_id", userID)
@@ -433,7 +435,7 @@ func (s *AuthService) LogoutAllUserDevices(ctx context.Context, userID string) e
 
 func (s *AuthService) LogoutAllMitraDevices(ctx context.Context, mitraID string) error {
 	applog.InfoCtx(ctx, "Mitra logout all devices", "mitra_id", mitraID)
-	
+
 	err := s.jwtHelper.RevokeAllMitraTokens(mitraID)
 	if err != nil {
 		applog.LogErrorCtx(ctx, err, "Mitra logout all devices failed", "mitra_id", mitraID)

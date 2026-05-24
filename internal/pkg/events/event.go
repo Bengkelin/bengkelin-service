@@ -1,6 +1,7 @@
 package events
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 )
@@ -11,6 +12,14 @@ const (
 	OrderCreated   EventType = "order.created"
 	OrderConfirmed EventType = "order.confirmed"
 	OrderCompleted EventType = "order.completed"
+
+	// Cache invalidation events
+	CacheInvalidated      EventType = "cache.invalidated"
+	MitraProfileUpdated   EventType = "mitra.profile.updated"
+	UserProfileUpdated    EventType = "user.profile.updated"
+	BengkelUpdated        EventType = "bengkel.updated"
+	BengkelServiceUpdated EventType = "bengkel.service.updated"
+	BengkelAddressUpdated EventType = "bengkel.address.updated"
 )
 
 type Event struct {
@@ -59,4 +68,24 @@ func (eb *EventBus) Publish(event Event) error {
 
 func (eb *EventBus) Subscribe(eventType EventType, handler func(payload []byte)) {
 	eb.handlers[eventType] = append(eb.handlers[eventType], handler)
+}
+
+// CacheInvalidationEvent represents a cache invalidation event
+// Used for both local in-memory events and distributed Redis pub/sub
+type CacheInvalidationEvent struct {
+	EntityType string `json:"entity_type"` // e.g., "mitra", "user", "bengkel"
+	EntityID   string `json:"entity_id"`   // ID of the entity that was updated
+	Action     string `json:"action"`      // e.g., "updated", "deleted"
+	Timestamp  int64  `json:"timestamp"`   // Unix timestamp for event ordering
+	Source     string `json:"source"`      // Source service/instance identifier
+}
+
+// CacheInvalidationHandler is the interface for handling cache invalidation events
+type CacheInvalidationHandler interface {
+	HandleCacheInvalidation(ctx context.Context, event CacheInvalidationEvent) error
+}
+
+// CacheInvalidationPublisher publishes cache invalidation events for distributed systems
+type CacheInvalidationPublisher interface {
+	PublishCacheInvalidation(ctx context.Context, event CacheInvalidationEvent) error
 }

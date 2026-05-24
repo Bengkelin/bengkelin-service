@@ -91,9 +91,9 @@ type MessageSenderInfo struct {
 // Pagination DTOs
 type GetMessagesRequest struct {
 	RoomID string `json:"room_id" validate:"required,uuid"`
-	Page   int    `json:"page" validate:"min=1"`
 	Limit  int    `json:"limit" validate:"min=1,max=100"`
-	Before *string `json:"before,omitempty"` // Message ID to get messages before
+	Before *string `json:"before,omitempty"` // Cursor: timestamp in RFC3339 format for cursor-based pagination
+	After  *string `json:"after,omitempty"`  // Cursor: timestamp in RFC3339 format for loading newer messages
 }
 
 type GetRoomsRequest struct {
@@ -103,7 +103,7 @@ type GetRoomsRequest struct {
 
 type PaginatedMessagesResponse struct {
 	Messages   []ChatMessageResponse `json:"messages"`
-	Pagination PaginationInfo        `json:"pagination"`
+	Pagination MessagePaginationInfo `json:"pagination"`
 }
 
 type PaginatedRoomsResponse struct {
@@ -116,6 +116,14 @@ type PaginationInfo struct {
 	Limit      int `json:"limit"`
 	Total      int `json:"total"`
 	TotalPages int `json:"total_pages"`
+}
+
+// Optimized pagination info for messages (cursor-based)
+type MessagePaginationInfo struct {
+	Limit      int     `json:"limit"`
+	HasMore    bool    `json:"has_more"`
+	NextCursor *string `json:"next_cursor,omitempty"` // Timestamp for loading older messages
+	PrevCursor *string `json:"prev_cursor,omitempty"` // Timestamp for loading newer messages
 }
 
 // Real-time DTOs
@@ -206,4 +214,27 @@ type JoinRoomRequest struct {
 
 type LeaveRoomRequest struct {
 	RoomID string `json:"room_id" validate:"required,uuid"`
+}
+
+// Polling DTOs
+type PollMessagesRequest struct {
+	Since   *time.Time `json:"since,omitempty"`
+	RoomIDs []string   `json:"room_ids,omitempty" validate:"omitempty,dive,uuid"`
+	Timeout int        `json:"timeout" validate:"min=1,max=60"`
+}
+
+type PollMessagesResponse struct {
+	Messages    []ChatMessageResponse `json:"messages"`
+	RoomUpdates []RoomUpdateInfo      `json:"room_updates"`
+	HasMore     bool                  `json:"has_more"`
+	NextPoll    time.Time             `json:"next_poll"`
+	Timestamp   time.Time             `json:"timestamp"`
+}
+
+type RoomUpdateInfo struct {
+	RoomID        string    `json:"room_id"`
+	UnreadCount   int       `json:"unread_count"`
+	LastMessage   *string   `json:"last_message"`
+	LastMessageAt *time.Time `json:"last_message_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }

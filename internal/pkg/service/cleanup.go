@@ -1,13 +1,18 @@
 package service
 
 import (
+	"context"
+	"sync"
 	"time"
 
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
 	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
 )
 
-var cleanupService *CleanupService
+var (
+	cleanupService *CleanupService
+	cleanupOnce    sync.Once
+)
 
 // CleanupService handles periodic cleanup tasks
 type CleanupService struct {
@@ -20,13 +25,20 @@ type CleanupServiceInterface interface {
 	CleanupExpiredTokens() error
 }
 
+// NewCleanupService creates a new cleanup service with injected dependencies
+func NewCleanupService(refreshTokenRepo repository.RefreshTokenRepositoryInterface) CleanupServiceInterface {
+	return &CleanupService{
+		refreshTokenRepo: refreshTokenRepo,
+	}
+}
+
 // GetCleanupService returns singleton instance of cleanup service
 func GetCleanupService() CleanupServiceInterface {
-	if cleanupService == nil {
+	cleanupOnce.Do(func() {
 		cleanupService = &CleanupService{
 			refreshTokenRepo: repository.GetRefreshTokenRepository(),
 		}
-	}
+	})
 	return cleanupService
 }
 
@@ -55,7 +67,7 @@ func (s *CleanupService) StartPeriodicCleanup() {
 // CleanupExpiredTokens removes all expired refresh tokens from database
 func (s *CleanupService) CleanupExpiredTokens() error {
 	applog.Debug("Starting cleanup of expired refresh tokens")
-	err := s.refreshTokenRepo.DeleteExpiredTokens()
+	err := s.refreshTokenRepo.DeleteExpiredTokens(context.Background())
 	if err != nil {
 		applog.Error("Error during token cleanup", "error", err.Error())
 		return err

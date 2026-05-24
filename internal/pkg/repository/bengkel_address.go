@@ -1,33 +1,37 @@
 package repository
 
 import (
+	"context"
+	"sync"
+
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 )
 
 var (
 	bengkelAddressRepository *BengkelAddressRepository
+	bengkelAddressOnce       sync.Once
 )
 
 type BengkelAddressRepositoryInterface interface {
-	CreateBengkelAddress(bengkelAddress models.BengkelAddress) (models.BengkelAddress, error)
-	UpdateBengkelAddressById(bengkelAddressId string, bengkelAddress *models.BengkelAddress) error
-	GetBengkelAddressById(bengkelAddressId string) (*models.BengkelAddress, error)
+	CreateBengkelAddress(ctx context.Context, bengkelAddress models.BengkelAddress) (models.BengkelAddress, error)
+	UpdateBengkelAddressById(ctx context.Context, bengkelAddressId string, bengkelAddress *models.BengkelAddress) error
+	GetBengkelAddressById(ctx context.Context, bengkelAddressId string) (*models.BengkelAddress, error)
 }
 
 type BengkelAddressRepository struct{}
 
 func GetBengkelAddressRepository() BengkelAddressRepositoryInterface {
-	if bengkelAddressRepository == nil {
+	bengkelAddressOnce.Do(func() {
 		bengkelAddressRepository = &BengkelAddressRepository{}
-	}
+	})
 	return bengkelAddressRepository
 }
 
 // CreateBengkelAddress implements BengkelAddressRepositoryInterface.
 
-func (repo *BengkelAddressRepository) CreateBengkelAddress(bengkelAddress models.BengkelAddress) (models.BengkelAddress, error) {
-	err := Create(&bengkelAddress)
+func (repo *BengkelAddressRepository) CreateBengkelAddress(ctx context.Context, bengkelAddress models.BengkelAddress) (models.BengkelAddress, error) {
+	err := Create(ctx, &bengkelAddress)
 	if err != nil {
 		return models.BengkelAddress{}, err
 	}
@@ -35,8 +39,8 @@ func (repo *BengkelAddressRepository) CreateBengkelAddress(bengkelAddress models
 }
 
 // UpdateBengkelAddressById implements BengkelAddressRepositoryInterface.
-func (*BengkelAddressRepository) UpdateBengkelAddressById(bengkelAddressId string, bengkelAddress *models.BengkelAddress) error {
-	err := db.GetDB().Model(&models.BengkelAddress{}).Where("bengkel_id = ?", bengkelAddressId).Updates(bengkelAddress).Error
+func (*BengkelAddressRepository) UpdateBengkelAddressById(ctx context.Context, bengkelAddressId string, bengkelAddress *models.BengkelAddress) error {
+	err := db.GetDB().WithContext(ctx).Model(&models.BengkelAddress{}).Where("bengkel_id = ?", bengkelAddressId).Updates(bengkelAddress).Error
 
 	if err != nil {
 		return err
@@ -46,11 +50,11 @@ func (*BengkelAddressRepository) UpdateBengkelAddressById(bengkelAddressId strin
 
 // GetBengkelAddressById implements BengkelAddressRepositoryInterface.
 
-func (*BengkelAddressRepository) GetBengkelAddressById(bengkelAddressId string) (*models.BengkelAddress, error) {
+func (*BengkelAddressRepository) GetBengkelAddressById(ctx context.Context, bengkelAddressId string) (*models.BengkelAddress, error) {
 	var bengkelAddress models.BengkelAddress
 	where := models.BengkelAddress{}
 	where.BengkelID = bengkelAddressId
-	_, err := First(where, &bengkelAddress, nil)
+	_, err := First(ctx, where, &bengkelAddress, nil)
 	if err != nil {
 		return nil, err
 	}

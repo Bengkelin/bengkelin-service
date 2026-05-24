@@ -11,6 +11,35 @@ type CreateOrderRequest struct {
 	ServiceType string   `json:"service_type" validate:"required,oneof=home store"`
 }
 
+// OrderServiceItem for structured order service creation
+type OrderServiceItem struct {
+	Title  string  `json:"title"`
+	Detail string  `json:"detail"`
+	Price  float64 `json:"price"`
+}
+
+// CreateOrderWithServicesRequest for creating an order with structured services
+type CreateOrderWithServicesRequest struct {
+	MitraID         string              `json:"mitra_id"`
+	Services        []OrderServiceItem  `json:"services"`
+	IsHomeService   bool                `json:"is_home_service"`
+	HomeServiceSchedule string          `json:"home_service_schedule,omitempty"`
+	PaymentMethod   string              `json:"payment_method,omitempty"`
+}
+
+// CreateOrderResult contains the result of order creation
+type CreateOrderResult struct {
+	OrderID       string  `json:"order_id"`
+	UserID        string  `json:"user_id"`
+	BengkelID     string  `json:"bengkel_id"`
+	BengkelName   string  `json:"bengkel_name"`
+	TotalPrice    float64 `json:"total_price"`
+	AdminFee      float64 `json:"admin_fee"`
+	Status        int     `json:"status"`
+	CreatedByName string  `json:"created_by_name"`
+	IsSelfOrder   bool    `json:"is_self_order"`
+}
+
 // UpdateOrderStatusRequest for updating order status
 type UpdateOrderStatusRequest struct {
 	Status string `json:"status" validate:"required,oneof=pending confirmed in_progress completed cancelled"`

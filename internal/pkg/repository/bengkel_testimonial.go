@@ -1,33 +1,37 @@
 package repository
 
 import (
+	"context"
+	"sync"
+
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 )
 
 var (
 	bengkelTestimonialRepository *BengkelTestimonialRepository
+	bengkelTestimonialOnce       sync.Once
 )
 
 type BengkelTestimonialRepositoryInterface interface {
-	CreateBengkelTestimonial(bengkelTestimonial models.BengkelTestimonial) (models.BengkelTestimonial, error)
-	UpdateBengkelTestimonialById(bengkelTestimonialId string, bengkelTestimonial *models.BengkelTestimonial) error
-	GetBengkelTestimonialById(bengkelTestimonialId string) (*models.BengkelTestimonial, error)
-	GetAllBengkelTestimonialPaginate(page int, limit int) ([]models.BengkelTestimonial, int, error)
+	CreateBengkelTestimonial(ctx context.Context, bengkelTestimonial models.BengkelTestimonial) (models.BengkelTestimonial, error)
+	UpdateBengkelTestimonialById(ctx context.Context, bengkelTestimonialId string, bengkelTestimonial *models.BengkelTestimonial) error
+	GetBengkelTestimonialById(ctx context.Context, bengkelTestimonialId string) (*models.BengkelTestimonial, error)
+	GetAllBengkelTestimonialPaginate(ctx context.Context, page int, limit int) ([]models.BengkelTestimonial, int, error)
 }
 
 type BengkelTestimonialRepository struct{}
 
 func GetBengkelTestimonialRepository() BengkelTestimonialRepositoryInterface {
-	if bengkelTestimonialRepository == nil {
+	bengkelTestimonialOnce.Do(func() {
 		bengkelTestimonialRepository = &BengkelTestimonialRepository{}
-	}
+	})
 	return bengkelTestimonialRepository
 }
 
 // CreateBengkelTestimonial implements BengkelTestimonialRepositoryInterface.
-func (repo *BengkelTestimonialRepository) CreateBengkelTestimonial(bengkelTestimonial models.BengkelTestimonial) (models.BengkelTestimonial, error) {
-	err := db.GetDB().Create(&bengkelTestimonial).Error
+func (repo *BengkelTestimonialRepository) CreateBengkelTestimonial(ctx context.Context, bengkelTestimonial models.BengkelTestimonial) (models.BengkelTestimonial, error) {
+	err := db.GetDB().WithContext(ctx).Create(&bengkelTestimonial).Error
 	if err != nil {
 		return models.BengkelTestimonial{}, err
 	}
@@ -35,8 +39,8 @@ func (repo *BengkelTestimonialRepository) CreateBengkelTestimonial(bengkelTestim
 }
 
 // UpdateBengkelTestimonialById implements BengkelTestimonialRepositoryInterface.
-func (*BengkelTestimonialRepository) UpdateBengkelTestimonialById(bengkelTestimonialId string, bengkelTestimonial *models.BengkelTestimonial) error {
-	err := db.GetDB().Model(&models.BengkelTestimonial{}).Where("id = ?", bengkelTestimonialId).Updates(bengkelTestimonial).Error
+func (*BengkelTestimonialRepository) UpdateBengkelTestimonialById(ctx context.Context, bengkelTestimonialId string, bengkelTestimonial *models.BengkelTestimonial) error {
+	err := db.GetDB().WithContext(ctx).Model(&models.BengkelTestimonial{}).Where("id = ?", bengkelTestimonialId).Updates(bengkelTestimonial).Error
 
 	if err != nil {
 		return err
@@ -45,11 +49,11 @@ func (*BengkelTestimonialRepository) UpdateBengkelTestimonialById(bengkelTestimo
 }
 
 // GetBengkelTestimonialById implements BengkelTestimonialRepositoryInterface.
-func (*BengkelTestimonialRepository) GetBengkelTestimonialById(bengkelTestimonialId string) (*models.BengkelTestimonial, error) {
+func (*BengkelTestimonialRepository) GetBengkelTestimonialById(ctx context.Context, bengkelTestimonialId string) (*models.BengkelTestimonial, error) {
 	var bengkelTestimonial models.BengkelTestimonial
 	where := models.BengkelTestimonial{}
 	where.UserID = bengkelTestimonialId
-	err := db.GetDB().First(where, &bengkelTestimonial, nil).Error
+	err := db.GetDB().WithContext(ctx).First(where, &bengkelTestimonial, nil).Error
 	if err != nil {
 		return nil, err
 	}
@@ -57,14 +61,14 @@ func (*BengkelTestimonialRepository) GetBengkelTestimonialById(bengkelTestimonia
 }
 
 // GetAllBengkelTestimonialPaginate implements BengkelTestimonialRepositoryInterface.
-func (*BengkelTestimonialRepository) GetAllBengkelTestimonialPaginate(page int, limit int) ([]models.BengkelTestimonial, int, error) {
+func (*BengkelTestimonialRepository) GetAllBengkelTestimonialPaginate(ctx context.Context, page int, limit int) ([]models.BengkelTestimonial, int, error) {
 	var bengkelTestimonials []models.BengkelTestimonial
 	var total int64
-	err := db.GetDB().Model(&models.BengkelTestimonial{}).Count(&total).Error
+	err := db.GetDB().WithContext(ctx).Model(&models.BengkelTestimonial{}).Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
-	err = db.GetDB().Offset((page - 1) * limit).Limit(limit).Find(&bengkelTestimonials).Error
+	err = db.GetDB().WithContext(ctx).Offset((page - 1) * limit).Limit(limit).Find(&bengkelTestimonials).Error
 	if err != nil {
 		return nil, 0, err
 	}

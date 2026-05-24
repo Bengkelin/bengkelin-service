@@ -40,7 +40,7 @@ func SetupDB() {
 
 	// Gorm config
 	gormConfig := &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
+		Logger: logger.Default.LogMode(logger.Info),
 	}
 
 	applog.Info("Setting up database connection", "driver", driver, "host", host, "port", port, "database", database)
@@ -105,7 +105,7 @@ func SetupDB() {
 // AutoMigrate project models
 func migrateTable() error {
 	applog.Info("🔄 Starting database table auto-migration...")
-	applog.Debug("Tables to migrate: User, Mitra, AddressUser, Vehicle, VehiclePhoto, Bengkel, BengkelPhoto, BengkelOperasional, BengkelAddress, BengkelService, BengkelTestimoni, ChatHistory, Pesanan, PesananService, AdminFee")
+	applog.Debug("Tables to migrate: User, Mitra, AddressUser, Vehicle, VehiclePhoto, Bengkel, BengkelPhoto, BengkelOperasional, BengkelAddress, BengkelService, BengkelTestimoni, ChatHistory, ChatRoom, ChatMessage, ChatParticipant, Pesanan, PesananService, AdminFee")
 
 	// Verify DB is not nil
 	if DB == nil {
@@ -126,6 +126,9 @@ func migrateTable() error {
 		&models.BengkelService{},
 		&models.BengkelTestimonial{},
 		&models.ChatHistory{},
+		&models.ChatRoom{},
+		&models.ChatMessage{},
+		&models.ChatParticipant{},
 		&models.Order{},
 		&models.OrderService{},
 		&models.AdminFee{},
@@ -279,4 +282,11 @@ func CreateCreatedAtUpdatedAtBengkelModel() {
 
 func GetDB() *gorm.DB {
 	return DB
+}
+
+// WithTransaction executes fn within a database transaction.
+// If fn returns an error, the transaction is rolled back.
+// If fn returns nil, the transaction is committed.
+func WithTransaction(fn func(tx *gorm.DB) error) error {
+	return DB.Transaction(fn)
 }

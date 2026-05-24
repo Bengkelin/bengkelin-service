@@ -1,28 +1,32 @@
 package repository
 
 import (
+	"context"
+	"sync"
+
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
 	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
 )
 
 var (
 	userRepository *UserRepository
+	userOnce       sync.Once
 )
 
 type UserRepositoryInterface interface {
-	FindUserByEmail(email string) (*models.User, error)
-	FindUserByID(userID string) (*models.User, error)
-	GetDetailUser(userId string) (*models.User, error)
-	CreateUser(user models.User) (models.User, error)
-	UpdateUser(user *models.User) error
-	UpdateUserById(userId string, user *models.User) error
+	FindUserByEmail(ctx context.Context, email string) (*models.User, error)
+	FindUserByID(ctx context.Context, userID string) (*models.User, error)
+	GetDetailUser(ctx context.Context, userId string) (*models.User, error)
+	CreateUser(ctx context.Context, user models.User) (models.User, error)
+	UpdateUser(ctx context.Context, user *models.User) error
+	UpdateUserById(ctx context.Context, userId string, user *models.User) error
 }
 
 type UserRepository struct{}
 
 // CreateUser implements UserRepositoryInterface.
-func (repo *UserRepository) CreateUser(user models.User) (models.User, error) {
-	err := Create(&user)
+func (repo *UserRepository) CreateUser(ctx context.Context, user models.User) (models.User, error) {
+	err := Create(ctx, &user)
 	// If error when transaction to database i.e duplicate email
 	if err != nil {
 		return models.User{}, err
@@ -31,11 +35,11 @@ func (repo *UserRepository) CreateUser(user models.User) (models.User, error) {
 }
 
 // FindUserByEmail implements UserRepositoryInterface.
-func (*UserRepository) FindUserByEmail(email string) (*models.User, error) {
+func (*UserRepository) FindUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
 	where := models.User{}
 	where.Email = email
-	_, err := First(where, &user, nil)
+	_, err := First(ctx, where, &user, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -43,22 +47,22 @@ func (*UserRepository) FindUserByEmail(email string) (*models.User, error) {
 }
 
 // FindUserByID implements UserRepositoryInterface.
-func (*UserRepository) FindUserByID(userID string) (*models.User, error) {
+func (*UserRepository) FindUserByID(ctx context.Context, userID string) (*models.User, error) {
 	var user models.User
 	where := models.User{}
 	where.ID = userID
-	_, err := First(where, &user, []string{"Addresses", "Vehicles", "Vehicles.Photos"})
+	_, err := First(ctx, where, &user, []string{"Addresses", "Vehicles", "Vehicles.Photos"})
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-func (*UserRepository) GetDetailUser(userId string) (*models.User, error) {
+func (*UserRepository) GetDetailUser(ctx context.Context, userId string) (*models.User, error) {
 	var user models.User
 	where := models.User{}
 	where.ID = userId
-	_, err := First(where, &user, []string{"Addresses"})
+	_, err := First(ctx, where, &user, []string{"Addresses"})
 	if err != nil {
 		return nil, err
 	}
@@ -66,13 +70,13 @@ func (*UserRepository) GetDetailUser(userId string) (*models.User, error) {
 }
 
 // UpdateUser implements UserRepositoryInterface.
-func (*UserRepository) UpdateUser(user *models.User) error {
+func (*UserRepository) UpdateUser(ctx context.Context, user *models.User) error {
 	panic("unimplemented")
 }
 
 // UpdateUserById implements UserRepositoryInterface.
-func (*UserRepository) UpdateUserById(userId string, user *models.User) error {
-	err := db.GetDB().Model(&user).Where("id = ?", userId).Updates(user)
+func (*UserRepository) UpdateUserById(ctx context.Context, userId string, user *models.User) error {
+	err := db.GetDB().WithContext(ctx).Model(&user).Where("id = ?", userId).Updates(user)
 	if err.Error != nil {
 		return err.Error
 	}
@@ -80,8 +84,8 @@ func (*UserRepository) UpdateUserById(userId string, user *models.User) error {
 }
 
 func GetUserRepository() UserRepositoryInterface {
-	if userRepository == nil {
+	userOnce.Do(func() {
 		userRepository = &UserRepository{}
-	}
+	})
 	return userRepository
 }

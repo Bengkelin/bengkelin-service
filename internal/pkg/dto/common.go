@@ -25,16 +25,18 @@ type AddressRequest struct {
 	AddressLabel string  `json:"address_label" validate:"required,min=1,max=100,no_xss"`
 	FullAddress  string  `json:"full_address" validate:"required,min=10,max=500,no_xss"`
 	Note         string  `json:"note" validate:"max=200,no_xss"`
+	IsPrimary    *bool   `json:"is_primary,omitempty"`
 }
 
 // AddressResponse for address data
 type AddressResponse struct {
-	ID           string    `json:"id"`
+	ID           uint      `json:"id"`
 	Latitude     float64   `json:"latitude"`
 	Longitude    float64   `json:"longitude"`
 	AddressLabel string    `json:"address_label"`
 	FullAddress  string    `json:"full_address"`
 	Note         string    `json:"note,omitempty"`
+	IsPrimary    bool      `json:"is_primary"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -48,13 +50,11 @@ type VehicleRequest struct {
 
 // VehicleResponse for vehicle data
 type VehicleResponse struct {
-	ID            string    `json:"id"`
+	ID            uint      `json:"id"`
 	VehicleType   string    `json:"vehicle_type"`
 	VehicleColor  string    `json:"vehicle_color"`
 	VehicleNumber string    `json:"vehicle_number"`
 	Photos        []string  `json:"photos,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // ErrorResponse for error responses

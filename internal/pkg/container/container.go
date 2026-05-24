@@ -17,15 +17,27 @@ type Container struct {
 	BengkelService service.BengkelServiceInterface
 	OrderService   service.OrderServiceInterface
 	ChatService    service.ChatServiceInterface
-	
+	MitraService   service.MitraServiceInterface
+	AdminFeeService service.AdminFeeServiceInterface
+	CleanupService  service.CleanupServiceInterface
+
 	// Repositories
-	UserRepo         repository.UserRepositoryInterface
-	MitraRepo        repository.MitraRepositoryInterface
-	BengkelRepo      repository.BengkelRepositoryInterface
-	AddressRepo      repository.AddressRepositoryInterface
-	VehicleRepo      repository.VehicleRepositoryInterface
-	RefreshTokenRepo repository.RefreshTokenRepositoryInterface
-	
+	UserRepo                repository.UserRepositoryInterface
+	MitraRepo               repository.MitraRepositoryInterface
+	BengkelRepo             repository.BengkelRepositoryInterface
+	AddressRepo             repository.AddressRepositoryInterface
+	VehicleRepo             repository.VehicleRepositoryInterface
+	RefreshTokenRepo        repository.RefreshTokenRepositoryInterface
+	BengkelAddressRepo      repository.BengkelAddressRepositoryInterface
+	BengkelOperationalRepo  repository.BengkelOperationalRepositoryInterface
+	BengkelServiceRepo      repository.BengkelServiceRepositoryInterface
+	BengkelPhotoRepo        repository.BengkelPhotoRepositoryInterface
+	BengkelTestimonialRepo  repository.BengkelTestimonialRepositoryInterface
+	OrderRepo               repository.OrderRepositoryInterface
+	OrderServiceRepo        repository.OrderServiceRepositoryInterface
+	ChatHistoryRepo         repository.ChatHistoryRepositoryInterface
+	AdminFeeRepo            repository.AdminFeeRepositoryInterface
+
 	// Helpers
 	JWTHelper      crypto.JWTCryptoHelper
 	PasswordHelper crypto.PasswordCryptoHelper
@@ -47,11 +59,11 @@ func GetContainer() *Container {
 // initializeContainer initializes all dependencies
 func initializeContainer() *Container {
 	applog.Info("Initializing dependency container")
-	
+
 	// Initialize helpers
 	jwtHelper := crypto.GetJWTCrypto()
 	passwordHelper := crypto.GetPasswordCryptoHelper()
-	
+
 	// Initialize repositories
 	userRepo := repository.GetUserRepository()
 	mitraRepo := repository.GetMitraRepository()
@@ -59,52 +71,77 @@ func initializeContainer() *Container {
 	addressRepo := repository.GetAddressRepository()
 	vehicleRepo := repository.GetVehicleRepository()
 	refreshTokenRepo := repository.GetRefreshTokenRepository()
-	
-	// TODO: Initialize missing repositories
-	// orderRepo := repository.GetOrderRepository()
-	// chatRepo := repository.GetChatRepository()
-	
+	bengkelAddressRepo := repository.GetBengkelAddressRepository()
+	bengkelOperationalRepo := repository.GetBengkelOperationalRepository()
+	bengkelServiceRepo := repository.GetBengkelServiceRepository()
+	bengkelPhotoRepo := repository.GetBengkelPhotoRepository()
+	bengkelTestimonialRepo := repository.GetBengkelTestimonialRepository()
+	orderRepo := repository.GetOrderRepository()
+	orderServiceRepo := repository.GetOrderServiceRepository()
+	chatHistoryRepo := repository.GetChatHistoryRepository()
+	adminFeeRepo := repository.GetAdminFeeRepository()
+
 	// Create service dependencies
 	serviceDeps := service.ServiceDependencies{
-		UserRepo:         userRepo,
-		MitraRepo:        mitraRepo,
-		BengkelRepo:      bengkelRepo,
-		AddressRepo:      addressRepo,
-		VehicleRepo:      vehicleRepo,
-		RefreshTokenRepo: refreshTokenRepo,
-		JWTHelper:        jwtHelper,
-		PasswordHelper:   passwordHelper,
-		// OrderRepo:        orderRepo,
-		// ChatRepo:         chatRepo,
+		UserRepo:                userRepo,
+		MitraRepo:               mitraRepo,
+		BengkelRepo:             bengkelRepo,
+		AddressRepo:             addressRepo,
+		VehicleRepo:             vehicleRepo,
+		RefreshTokenRepo:        refreshTokenRepo,
+		BengkelAddressRepo:      bengkelAddressRepo,
+		BengkelOperationalRepo:  bengkelOperationalRepo,
+		BengkelServiceRepo:      bengkelServiceRepo,
+		BengkelPhotoRepo:        bengkelPhotoRepo,
+		BengkelTestimonialRepo:  bengkelTestimonialRepo,
+		OrderRepo:               orderRepo,
+		OrderServiceRepo:        orderServiceRepo,
+		ChatHistoryRepo:         chatHistoryRepo,
+		AdminFeeRepo:            adminFeeRepo,
+		JWTHelper:               jwtHelper,
+		PasswordHelper:          passwordHelper,
 	}
-	
+
 	// Initialize services
 	authService := service.NewAuthService(serviceDeps)
-	// userService := service.NewUserService(serviceDeps)
-	// bengkelService := service.NewBengkelService(serviceDeps)
-	// orderService := service.NewOrderService(serviceDeps)
-	// chatService := service.NewChatService(serviceDeps)
-	
+	userService := service.NewUserService(serviceDeps)
+	bengkelService := service.NewBengkelService(serviceDeps)
+	orderService := service.NewOrderService(serviceDeps)
+	chatService := service.NewChatService(serviceDeps)
+	mitraService := service.NewMitraService(serviceDeps)
+	adminFeeService := service.NewAdminFeeService(serviceDeps)
+	cleanupService := service.NewCleanupService(refreshTokenRepo)
+
 	applog.Info("Dependency container initialized successfully")
-	
+
 	return &Container{
 		// Services
-		AuthService: authService,
-		// UserService:    userService,
-		// BengkelService: bengkelService,
-		// OrderService:   orderService,
-		// ChatService:    chatService,
-		
+		AuthService:     authService,
+		UserService:     userService,
+		BengkelService:  bengkelService,
+		OrderService:    orderService,
+		ChatService:     chatService,
+		MitraService:    mitraService,
+		AdminFeeService: adminFeeService,
+		CleanupService:  cleanupService,
+
 		// Repositories
-		UserRepo:         userRepo,
-		MitraRepo:        mitraRepo,
-		BengkelRepo:      bengkelRepo,
-		AddressRepo:      addressRepo,
-		VehicleRepo:      vehicleRepo,
-		RefreshTokenRepo: refreshTokenRepo,
-		// OrderRepo:        orderRepo,
-		// ChatRepo:         chatRepo,
-		
+		UserRepo:               userRepo,
+		MitraRepo:              mitraRepo,
+		BengkelRepo:            bengkelRepo,
+		AddressRepo:            addressRepo,
+		VehicleRepo:            vehicleRepo,
+		RefreshTokenRepo:       refreshTokenRepo,
+		BengkelAddressRepo:     bengkelAddressRepo,
+		BengkelOperationalRepo: bengkelOperationalRepo,
+		BengkelServiceRepo:     bengkelServiceRepo,
+		BengkelPhotoRepo:       bengkelPhotoRepo,
+		BengkelTestimonialRepo: bengkelTestimonialRepo,
+		OrderRepo:              orderRepo,
+		OrderServiceRepo:       orderServiceRepo,
+		ChatHistoryRepo:        chatHistoryRepo,
+		AdminFeeRepo:           adminFeeRepo,
+
 		// Helpers
 		JWTHelper:      jwtHelper,
 		PasswordHelper: passwordHelper,

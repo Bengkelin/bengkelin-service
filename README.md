@@ -1,296 +1,197 @@
 # Bengkelin Service
 
-Bengkelin Service adalah sebuah aplikasi berbasis Golang yang menyediakan layanan manajemen bengkel. Aplikasi ini memungkinkan pengguna untuk mengelola berbagai aspek dari sebuah bengkel seperti pencatatan servis, manajemen inventaris, dan penjadwalan.
+> Go-based REST API backend for a bengkel (auto-repair workshop) management platform.
 
-## 🚀 Quick Start dengan Docker (Direkomendasikan)
+## Quick Links
 
-### Prasyarat
-- Docker & Docker Compose
-- Git
+| Resource                        | Path                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 📖 **Codebase Overview**        | [`docs/CODEBASE_OVERVIEW.md`](docs/CODEBASE_OVERVIEW.md)                                         |
+| 🚀 **Full Setup & Usage Guide** | [`docs/README.full.md`](docs/README.full.md)                                                     |
+| 🏗️ **Architecture**             | [`docs/architecture/07-Architecture.md`](docs/architecture/07-Architecture.md)                   |
+| 🗄️ **Database Schema**          | [`docs/database/02-ERD.md`](docs/database/02-ERD.md)                                             |
+| 📡 **API Documentation**        | [`docs/api/api-documentation.md`](docs/api/api-documentation.md)                                 |
+| 🐳 **Docker Setup**             | [`docs/deployment/DOCKER_SETUP.md`](docs/deployment/DOCKER_SETUP.md)                             |
+| 🧪 **Testing Guide**            | [`docs/deployment/TESTING_GUIDE.md`](docs/deployment/TESTING_GUIDE.md)                           |
+| 🔐 **JWT Implementation**       | [`docs/implementation/JWT_IMPLEMENTATION.md`](docs/implementation/JWT_IMPLEMENTATION.md)         |
+| 📊 **Technical Skills**         | [`docs/portfolio/TECHNICAL_SKILLS_ASSESSMENT.md`](docs/portfolio/TECHNICAL_SKILLS_ASSESSMENT.md) |
 
-### Menjalankan Development Environment
+## Tech Stack
 
-**MySQL (Default):**
+**Go 1.23 · Gin · GORM · PostgreSQL (with pg_trgm) · Redis · RabbitMQ · JWT · WebSocket · Prometheus · Docker**
 
-**Windows:**
-```cmd
-# Clone repository
-git clone https://github.com/your-username/bengkelin-service.git
-cd bengkelin-service
+- **sync.Once** singleton pattern for all 16 repository instances (thread-safe)
 
-# Setup environment
-copy .env.example .env
-# Edit .env sesuai konfigurasi Anda
+## Architecture
 
-# Build dan jalankan
-scripts\docker-build.bat dev mysql
-scripts\docker-run.bat dev mysql up
+```
+HTTP Request
+    │
+    ▼
+┌─────────┐    ┌─────────┐    ┌────────────┐    ┌────┐
+│ Handler │───▶│ Service │───▶│ Repository │───▶│ DB │
+└─────────┘    └─────────┘    └────────────┘    └────┘
+    │               │               │
+    │          (business        (data access
+    │           logic)           only)
+    │
+  (parse request,
+   validate, format response)
 ```
 
-**Linux/Mac:**
+**Layer rules:**
+
+| Layer | Responsibility |
+|-------|---------------|
+| **Handler** (`internal/api/handlers/`) | Parse HTTP requests, call service, format response. No business logic. |
+| **Service** (`internal/pkg/service/`) | Business logic, validation rules, orchestrate multiple repos. |
+| **Repository** (`internal/pkg/repository/`) | Data access only — GORM queries, no business logic. |
+| **Container** (`internal/pkg/container/`) | Dependency injection — wires 15 repos + 7 services at startup. |
+
+**Key packages:**
+
+| Package | Purpose |
+|---------|---------|
+| `internal/pkg/container/` | DI container with constructor-based injection |
+| `internal/pkg/dto/` | Request/response DTOs — decoupled from DB models |
+| `internal/pkg/errors/` | Structured error types for consistent error handling |
+| `pkg/response/` | Standard response envelope (`BuildSuccessResponse`, `BuildPaginatedResponse`) |
+
+## Getting Started
+
 ```bash
-# Clone repository
+# 1. Clone & configure
 git clone https://github.com/your-username/bengkelin-service.git
 cd bengkelin-service
+cp .env.example .env   # edit .env with your values
 
-# Setup environment
-cp .env.example .env
-# Edit .env sesuai konfigurasi Anda
+# 2. Run database migrations
+psql -d bengkelin -f scripts/migrations/add_missing_indexes.sql
+psql -d bengkelin -f scripts/migrations/add_performance_indexes.sql
 
-# Build dan jalankan
+# 3. Run
+make run
+
+# Or with Docker
 ./scripts/docker-build.sh dev mysql
 ./scripts/docker-run.sh dev mysql up
 ```
 
-**PostgreSQL:**
+**API**: http://localhost:3000
+**Swagger**: http://localhost:3000/swagger/index.html
+**Health**: http://localhost:3000/health
 
-**Windows:**
-```cmd
-# Setup environment dengan PostgreSQL
-# Edit .env: DATABASE_DRIVER=postgres
-
-# Build dan jalankan
-scripts\docker-build.bat dev postgres
-scripts\docker-run.bat dev postgres up
-```
-
-**Linux/Mac:**
-```bash
-# Setup environment dengan PostgreSQL
-# Edit .env: DATABASE_DRIVER=postgres
-
-# Build dan jalankan
-./scripts/docker-build.sh dev postgres
-./scripts/docker-run.sh dev postgres up
-```
-
-### Akses Layanan Development
-
-**MySQL:**
-- **API**: http://localhost:3000
-- **Swagger Documentation**: http://localhost:3000/swagger/index.html
-- **Health Check**: http://localhost:3000/health
-- **Metrics (Prometheus)**: http://localhost:3000/metrics
-- **Application Metrics**: http://localhost:3000/metrics/app
-- **phpMyAdmin**: http://localhost:8080 (user: root, password: lihat .env)
-- **Redis Commander**: http://localhost:8081
-- **MailHog**: http://localhost:8025
-
-**PostgreSQL:**
-- **API**: http://localhost:3000
-- **Swagger Documentation**: http://localhost:3000/swagger/index.html
-- **Health Check**: http://localhost:3000/health
-- **Metrics (Prometheus)**: http://localhost:3000/metrics
-- **Application Metrics**: http://localhost:3000/metrics/app
-- **pgAdmin**: http://localhost:8082 (admin@bengkelin.com / admin123)
-- **Redis Commander**: http://localhost:8081
-- **MailHog**: http://localhost:8025
-
-## 🏭 Production Deployment
+**Common commands:**
 
 ```bash
-# MySQL production
-./scripts/docker-build.sh prod mysql
-./scripts/docker-run.sh prod mysql up
-
-# PostgreSQL production
-./scripts/docker-build.sh prod postgres
-./scripts/docker-run.sh prod postgres up
-
-# Akses via Nginx: https://localhost
+make build              # Build binary
+make run                # Run application
+make test-unit          # Run unit tests
+make test-integration   # Run integration tests
+make test-coverage      # Run tests with coverage
+make lint               # Run linter
+make swagger-gen        # Regenerate Swagger docs
 ```
 
-## 🛠️ Manual Installation
+## Database
 
-### Prasyarat
-- [Golang](https://golang.org/dl/) versi 1.21 atau lebih baru
-- [MySQL](https://dev.mysql.com/downloads/) 8.0+
-- [Redis](https://redis.io/download) (untuk caching dan rate limiting)
-- [Git](https://git-scm.com/)
+- **PostgreSQL** with `pg_trgm` extension for trigram-based `ILIKE` search
+- Run `scripts/migrations/add_missing_indexes.sql` before first run — adds trigram indexes for search columns (`bengkel_name`, `nama_service`, `full_address`, `city`, `province`), foreign key indexes, and composite indexes for common query patterns
+- Run `scripts/migrations/add_performance_indexes.sql` for additional performance indexes
 
-### Langkah-langkah
+## Project Structure
 
-1. **Clone Repository**
-```bash
-git clone https://github.com/your-username/bengkelin-service.git
-cd bengkelin-service
 ```
-
-2. **Install Dependencies**
-```bash
-go mod tidy
-```
-
-3. **Setup Environment**
-```bash
-cp .env.example .env
-# Edit .env dengan konfigurasi database dan Redis Anda
-```
-
-4. **Menjalankan Aplikasi**
-```bash
-make run
-# atau
-go run cmd/app/main.go
-```
-
-## 🏗️ Arsitektur & Fitur
-
-### Fitur Utama
-- ✅ **JWT Authentication** dengan refresh token dan automatic rotation
-- ✅ **Multi-tier Rate Limiting** (general, auth, strict)
-- ✅ **Input Validation** dengan security-focused rules (XSS, SQL injection prevention)
-- ✅ **Clean Architecture** dengan service layer dan dependency injection
-- ✅ **Structured Logging** dengan context awareness
-- ✅ **API Documentation** dengan Swagger/OpenAPI 3.0
-- ✅ **Health Monitoring** dengan comprehensive health checks
-- ✅ **Metrics Collection** dengan Prometheus integration
-- ✅ **Docker Support** dengan multi-stage build untuk production
-- ✅ **Indonesian-specific Validation** (nomor telepon, plat kendaraan, hari dalam bahasa Indonesia)
-
-### Teknologi Stack
-- **Backend**: Go 1.21, Gin Framework
-- **Database**: MySQL 8.0 atau PostgreSQL 15 dengan GORM
-- **Cache**: Redis untuk rate limiting dan caching
-- **Authentication**: JWT dengan refresh token
-- **Containerization**: Docker dengan multi-stage build
-- **Reverse Proxy**: Nginx dengan SSL support
-- **Monitoring**: Health checks dan structured logging
-
-### Struktur Proyek
-```
-├── cmd/app/                 # Application entry point
+bengkelin-service/
+├── cmd/app/                    # Application entrypoint
 ├── internal/
-│   ├── api/                 # API layer (handlers, middleware, router)
-│   └── pkg/                 # Internal packages (models, services, repositories)
-├── pkg/                     # Shared packages (crypto, validation, logging)
-├── config/                  # Configuration files (nginx, redis, mysql)
-├── scripts/                 # Build dan deployment scripts
-├── docs/                    # Documentation
-└── tests/                   # Test files
+│   ├── api/
+│   │   ├── handlers/           # HTTP handlers (auth, bengkel, user, chat, order, etc.)
+│   │   ├── middleware/         # JWT, CORS, logging, validation, error handler
+│   │   └── router/             # v1/ and v2/ route definitions
+│   └── pkg/
+│       ├── config/             # App configuration
+│       ├── constants/          # Shared constants
+│       ├── container/          # DI container (wires 15 repos + 7 services)
+│       ├── db/                 # Database connection + transaction helper
+│       ├── dto/                # Request/response DTOs
+│       ├── errors/             # Structured error types
+│       ├── events/             # Event definitions
+│       ├── models/             # GORM model definitions
+│       ├── rabbitmq/           # RabbitMQ producer/consumer
+│       ├── redis/              # Redis client
+│       ├── repository/         # Data access layer (16 repos, sync.Once singletons)
+│       ├── service/            # Business logic layer (7+ services)
+│       └── validator/          # Input validation
+├── pkg/
+│   ├── helpers/                # Shared utilities
+│   └── response/               # Standard response envelope
+├── scripts/migrations/         # SQL migration scripts
+└── tests/                      # Unit, integration, performance tests
 ```
 
-## 📚 Dokumentasi
+**Services:** AuthService, UserService, BengkelService, OrderService, ChatService, MitraService, AdminFeeService, FileUploadService
 
-- [Docker Setup Guide](docs/DOCKER_SETUP.md) - Panduan lengkap Docker setup
-- [PostgreSQL Setup Guide](docs/POSTGRESQL_SETUP.md) - Panduan setup PostgreSQL
-- [JWT Implementation](docs/JWT_IMPLEMENTATION.md) - Detail implementasi JWT
-- [Rate Limiting](docs/RATE_LIMITING.md) - Konfigurasi rate limiting
-- [Input Validation](docs/INPUT_VALIDATION.md) - Sistem validasi input
-- [Architecture Improvements](docs/ARCHITECTURE_IMPROVEMENTS.md) - Peningkatan arsitektur
-- [Logging Enhancement](docs/LOGGING_ENHANCEMENT.md) - Sistem logging
-- [Filename Standardization](docs/FILENAME_STANDARDIZATION.md) - Standarisasi nama file
+## API Response Format
 
-## 🔧 Development Tools
+All endpoints return a standard envelope:
 
-### Swagger Documentation
-```bash
-# Install Swagger CLI
-make swagger-install
+```json
+// Success (single item)
+{
+  "success": true,
+  "message": "Data retrieved successfully",
+  "errors": null,
+  "data": { ... }
+}
 
-# Generate Swagger documentation
-make swagger-gen
+// Success (paginated list)
+{
+  "success": true,
+  "message": "Data retrieved successfully",
+  "errors": null,
+  "data": {
+    "items": [ ... ],
+    "total": 100,
+    "page": 1,
+    "limit": 10,
+    "total_pages": 10
+  }
+}
 
-# View documentation info
-make swagger-serve
-
-# Clean generated files
-make swagger-clean
+// Error
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": { "field": "error message" },
+  "data": null
+}
 ```
 
-### Docker Commands
-```bash
-# MySQL Development
-scripts/docker-build.sh dev mysql     # Build development image
-scripts/docker-run.sh dev mysql up    # Start development environment
-scripts/docker-run.sh dev mysql logs  # View logs
+---
 
-# PostgreSQL Development
-scripts/docker-build.sh dev postgres     # Build development image
-scripts/docker-run.sh dev postgres up    # Start development environment
-scripts/docker-run.sh dev postgres logs  # View logs
+For full documentation see [`docs/`](docs/).
 
-# MySQL Production
-scripts/docker-build.sh prod mysql    # Build production image
-scripts/docker-run.sh prod mysql up   # Start production environment
+## Contributing / Development Notes
 
-# PostgreSQL Production
-scripts/docker-build.sh prod postgres    # Build production image
-scripts/docker-run.sh prod postgres up   # Start production environment
+**Architecture rules (from Phase 1 & 2a refactors):**
 
-# Cleanup
-scripts/docker-cleanup.sh light # Light cleanup
-scripts/docker-cleanup.sh full  # Full cleanup
-```
+- Handlers must not contain business logic — delegate to services
+- Services orchestrate repositories; repositories do data access only
+- Use `db.WithTransaction` for multi-step write operations
+- Use `FileUploadService` for all file uploads (don't duplicate upload logic in handlers)
+- All response DTOs must use the standard `pkg/response/` envelope
+- Repository singletons use `sync.Once` — don't bypass with direct struct instantiation
+- New database queries that use `ILIKE` require a trigram index (see `scripts/migrations/add_missing_indexes.sql`)
 
-### Testing
-```bash
-# Run all tests
-go test ./...
+**Adding new features:**
 
-# Run specific test
-go test ./tests/jwt_test.go
-go test ./tests/validation_test.go
-go test ./tests/rate_limit_test.go
-```
+1. Define model in `internal/pkg/models/`
+2. Create DTOs in `internal/pkg/dto/`
+3. Add repository in `internal/pkg/repository/` with `sync.Once` singleton
+4. Add service in `internal/pkg/service/` implementing an interface from `interfaces.go`
+5. Wire into `internal/pkg/container/container.go`
+6. Add handler in `internal/api/handlers/`
+7. Register route in `internal/api/router/`
 
-### Monitoring & Health Checks
-```bash
-# Health check endpoints
-curl http://localhost:3000/health      # Comprehensive health check
-curl http://localhost:3000/ready       # Readiness check (K8s ready)
-curl http://localhost:3000/live        # Liveness check (K8s liveness)
-
-# Metrics endpoints
-curl http://localhost:3000/metrics     # Prometheus metrics
-curl http://localhost:3000/metrics/app # Application-specific metrics
-
-# API Documentation
-curl http://localhost:3000/swagger/index.html # Swagger UI
-```
-
-### Build
-```bash
-# Development build
-go build -o main cmd/app/main.go
-
-# Production build (optimized)
-CGO_ENABLED=0 GOOS=linux go build -ldflags='-w -s' -o main cmd/app/main.go
-```
-
-## 🔒 Security Features
-
-- **JWT dengan Refresh Token**: Automatic token rotation dan revocation
-- **Rate Limiting**: Multi-tier protection (100/min general, 10/min auth, 5/min strict)
-- **Input Validation**: XSS dan SQL injection prevention
-- **Security Headers**: Comprehensive security headers via Nginx
-- **HTTPS**: SSL termination dengan modern TLS configuration
-- **Database Security**: Prepared statements dan input sanitization
-
-## 🚀 Production Ready
-
-Aplikasi ini telah dioptimalkan untuk production dengan:
-
-- **Multi-stage Docker Build**: Image size ~15MB
-- **Resource Limits**: CPU dan memory limits untuk setiap service
-- **Health Checks**: Comprehensive health monitoring
-- **Logging**: Structured logging dengan log levels
-- **Monitoring**: Ready untuk integrasi dengan monitoring tools
-- **SSL/TLS**: Production-ready HTTPS configuration
-- **Database Optimization**: Connection pooling dan query optimization
-
-## 🤝 Contributing
-
-1. Fork repository
-2. Buat feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push ke branch (`git push origin feature/amazing-feature`)
-5. Buat Pull Request
-
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-
-## 📞 Contact
-
-Project Link: [https://github.com/your-username/bengkelin-service](https://github.com/your-username/bengkelin-service)
+**Refactor history:** See [`plan-claude-code/`](plan-claude-code/) for Phase 1 (clean architecture) and Phase 2a (database performance & thread safety) details.
