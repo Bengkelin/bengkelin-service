@@ -4,13 +4,14 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/container"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	appErrors "github.com/Bengkelin/bengkelin-service/internal/pkg/errors"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
-	"github.com/Bengkelin/bengkelin-service/pkg/response"
+	"github.com/Bengkelin/bengkelin-service/internal/container"
+	"github.com/Bengkelin/bengkelin-service/internal/dto"
+	appErrors "github.com/Bengkelin/bengkelin-service/internal/errors"
+	"github.com/Bengkelin/bengkelin-service/internal/models"
+	"github.com/Bengkelin/bengkelin-service/internal/service"
+	"github.com/Bengkelin/bengkelin-service/internal/validator"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
+	"github.com/Bengkelin/bengkelin-service/internal/response"
 	"github.com/gin-gonic/gin"
 )
 
@@ -35,7 +36,7 @@ func GetBengkelHandler() *BengkelHandler {
 			bengkelService: c.BengkelService,
 			orderService:   c.OrderService,
 			userService:    c.UserService,
-			uploadService:  service.NewFileUploadService(),
+			uploadService:  service.NewFileUploadServiceFromConfig(),
 		}
 	}
 	return bengkelHandler
@@ -64,16 +65,28 @@ func toBengkelResponse(b *models.Bengkel) dto.BengkelResponse {
 		resp.IsOpen = *b.IsOpen
 	}
 	if len(b.Services) > 0 {
-		services := make([]string, 0, len(b.Services))
+		services := make([]dto.BengkelServiceResponse, 0, len(b.Services))
 		for _, s := range b.Services {
-			services = append(services, s.NamaService)
+			svc := dto.BengkelServiceResponse{
+				ID:          s.ID,
+				NamaService: s.NamaService,
+				Description: s.Description,
+				Price:       s.Price,
+			}
+			if s.IsAvailable != nil {
+				svc.IsAvailable = *s.IsAvailable
+			}
+			services = append(services, svc)
 		}
 		resp.Services = services
 	}
 	if len(b.Photos) > 0 {
-		photos := make([]string, 0, len(b.Photos))
+		photos := make([]dto.BengkelPhotoResponse, 0, len(b.Photos))
 		for _, p := range b.Photos {
-			photos = append(photos, p.PhotoURL)
+			photos = append(photos, dto.BengkelPhotoResponse{
+				ID:       p.ID,
+				PhotoURL: p.PhotoURL,
+			})
 		}
 		resp.Photos = photos
 	}
@@ -435,6 +448,11 @@ func (h *BengkelHandler) CreateBengkelPhoto(c *gin.Context) {
 		return
 	}
 
+	applog.Info("CreateBengkelPhoto request",
+		"mitra_id", mitraId,
+		"photo_count", len(photos),
+	)
+
 	// Determine protocol from request
 	protocol := "http"
 	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
@@ -443,16 +461,55 @@ func (h *BengkelHandler) CreateBengkelPhoto(c *gin.Context) {
 
 	urlPictures, err := h.uploadService.UploadMultipleFiles(photos, service.PhotoUploadConfig, protocol, c.Request.Host)
 	if err != nil {
+		applog.Error("Failed to upload bengkel photos", "error", err, "mitra_id", mitraId)
 		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("failed to upload file: "+err.Error()))
 		return
 	}
 
+	applog.Info("All photos uploaded successfully",
+		"mitra_id", mitraId,
+		"uploaded_count", len(urlPictures),
+		"urls", urlPictures,
+	)
+
 	if err := h.bengkelService.CreateBengkelPhotos(c.Request.Context(), mitraId, urlPictures); err != nil {
+		applog.Error("Failed to save bengkel photos to DB", "error", err, "mitra_id", mitraId)
 		h.HandleError(c, err)
 		return
 	}
 
+	applog.Info("Bengkel photos saved to database", "mitra_id", mitraId, "count", len(urlPictures))
 	resp := response.BuildSuccessResponse("success attach new bengkel photo", nil)
+	c.JSON(http.StatusOK, resp)
+}
+
+// DeleteBengkelPhoto function
+func (h *BengkelHandler) DeleteBengkelPhoto(c *gin.Context) {
+	mitraId := c.MustGet("id").(string)
+	photoId := c.Param("photoId")
+
+	if photoId == "" {
+		h.HandleError(c, appErrors.ErrValidationFailed.WithDetails("photo_id is required"))
+		return
+	}
+
+	applog.Info("DeleteBengkelPhoto request", "mitra_id", mitraId, "photo_id", photoId)
+
+	// Delete from cloud storage if URL exists
+	if photoURL, err := h.bengkelService.GetBengkelPhotoURL(c.Request.Context(), photoId); err == nil && photoURL != "" {
+		if delErr := h.uploadService.DeleteFile(photoURL); delErr != nil {
+			applog.Warn("Failed to delete file from cloud storage", "error", delErr, "url", photoURL)
+		}
+	}
+
+	if err := h.bengkelService.DeleteBengkelPhoto(c.Request.Context(), mitraId, photoId); err != nil {
+		applog.Error("Failed to delete bengkel photo", "error", err, "mitra_id", mitraId, "photo_id", photoId)
+		h.HandleError(c, err)
+		return
+	}
+
+	applog.Info("Bengkel photo deleted", "mitra_id", mitraId, "photo_id", photoId)
+	resp := response.BuildSuccessResponse("success delete bengkel photo", nil)
 	c.JSON(http.StatusOK, resp)
 }
 

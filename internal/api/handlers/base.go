@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/constants"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	appErrors "github.com/Bengkelin/bengkelin-service/internal/pkg/errors"
-	"github.com/Bengkelin/bengkelin-service/pkg/response"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	"github.com/Bengkelin/bengkelin-service/internal/constants"
+	"github.com/Bengkelin/bengkelin-service/internal/dto"
+	appErrors "github.com/Bengkelin/bengkelin-service/internal/errors"
+	"github.com/Bengkelin/bengkelin-service/internal/response"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
 	"github.com/gin-gonic/gin"
 )
 

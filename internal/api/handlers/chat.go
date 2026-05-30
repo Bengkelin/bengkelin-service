@@ -6,13 +6,13 @@ import (
 
 	rtmtokenbuilder2 "github.com/AgoraIO-Community/go-tokenbuilder/rtmtokenbuilder"
 	"github.com/AgoraIO/Tools/DynamicKey/AgoraDynamicKey/go/src/chatTokenBuilder"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/container"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	appErrors "github.com/Bengkelin/bengkelin-service/internal/pkg/errors"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
-	"github.com/Bengkelin/bengkelin-service/pkg/response"
+	"github.com/Bengkelin/bengkelin-service/internal/config"
+	"github.com/Bengkelin/bengkelin-service/internal/container"
+	"github.com/Bengkelin/bengkelin-service/internal/dto"
+	appErrors "github.com/Bengkelin/bengkelin-service/internal/errors"
+	"github.com/Bengkelin/bengkelin-service/internal/service"
+	"github.com/Bengkelin/bengkelin-service/internal/validator"
+	"github.com/Bengkelin/bengkelin-service/internal/response"
 	"github.com/gin-gonic/gin"
 )
 

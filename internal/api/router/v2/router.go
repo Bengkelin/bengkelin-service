@@ -5,13 +5,12 @@ import (
 	"time"
 	"github.com/Bengkelin/bengkelin-service/internal/api/handlers"
 	"github.com/Bengkelin/bengkelin-service/internal/api/middleware"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/redis"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
-	pkgMiddleware "github.com/Bengkelin/bengkelin-service/pkg/middleware"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	"github.com/Bengkelin/bengkelin-service/internal/config"
+	"github.com/Bengkelin/bengkelin-service/internal/db"
+	"github.com/Bengkelin/bengkelin-service/internal/redis"
+	"github.com/Bengkelin/bengkelin-service/internal/repository"
+	"github.com/Bengkelin/bengkelin-service/internal/service"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
@@ -21,22 +20,22 @@ func SetupV2Routes(app *gin.Engine) {
 	conf := config.GetConfig()
 	
 	// Create rate limiters for v2 routes
-	var generalLimiter, chatLimiter *pkgMiddleware.IPRateLimiter
+	var generalLimiter, chatLimiter *middleware.IPRateLimiter
 	
 	if conf.RateLimit.Enabled {
-		generalLimiter = pkgMiddleware.NewIPRateLimiter(
+		generalLimiter = middleware.NewIPRateLimiter(
 			rate.Limit(conf.RateLimit.GeneralRPS), 
 			conf.RateLimit.GeneralBurst,
 		)
 		
 		// Chat endpoints get higher rate limits due to real-time nature
-		chatLimiter = pkgMiddleware.NewIPRateLimiter(
+		chatLimiter = middleware.NewIPRateLimiter(
 			rate.Limit(conf.RateLimit.GeneralRPS * 2), // Double the general rate
 			conf.RateLimit.GeneralBurst * 2,
 		)
 		
-		pkgMiddleware.StartCleanupRoutine(generalLimiter)
-		pkgMiddleware.StartCleanupRoutine(chatLimiter)
+		middleware.StartCleanupRoutine(generalLimiter)
+		middleware.StartCleanupRoutine(chatLimiter)
 	}
 
 	// Initialize dependencies
@@ -93,7 +92,7 @@ func SetupV2Routes(app *gin.Engine) {
 	
 	// Apply general rate limiting to v2 routes if enabled
 	if conf.RateLimit.Enabled && generalLimiter != nil {
-		v2Route.Use(pkgMiddleware.RateLimitMiddleware(generalLimiter))
+		v2Route.Use(middleware.RateLimitMiddleware(generalLimiter))
 	}
 
 	// Chat routes group
@@ -101,7 +100,7 @@ func SetupV2Routes(app *gin.Engine) {
 	
 	// Apply chat-specific rate limiting if enabled
 	if conf.RateLimit.Enabled && chatLimiter != nil {
-		chatGroup.Use(pkgMiddleware.RateLimitMiddleware(chatLimiter))
+		chatGroup.Use(middleware.RateLimitMiddleware(chatLimiter))
 	}
 
 	// WebSocket endpoint (no authentication middleware here, handled in the handler)
@@ -156,21 +155,21 @@ func SetupV2RoutesWithCustomDependencies(
 	conf := config.GetConfig()
 	
 	// Create rate limiters for v2 routes
-	var generalLimiter, chatLimiter *pkgMiddleware.IPRateLimiter
+	var generalLimiter, chatLimiter *middleware.IPRateLimiter
 	
 	if conf.RateLimit.Enabled {
-		generalLimiter = pkgMiddleware.NewIPRateLimiter(
+		generalLimiter = middleware.NewIPRateLimiter(
 			rate.Limit(conf.RateLimit.GeneralRPS), 
 			conf.RateLimit.GeneralBurst,
 		)
 		
-		chatLimiter = pkgMiddleware.NewIPRateLimiter(
+		chatLimiter = middleware.NewIPRateLimiter(
 			rate.Limit(conf.RateLimit.GeneralRPS * 2),
 			conf.RateLimit.GeneralBurst * 2,
 		)
 		
-		pkgMiddleware.StartCleanupRoutine(generalLimiter)
-		pkgMiddleware.StartCleanupRoutine(chatLimiter)
+		middleware.StartCleanupRoutine(generalLimiter)
+		middleware.StartCleanupRoutine(chatLimiter)
 	}
 
 	// Initialize handlers with injected dependencies
@@ -182,7 +181,7 @@ func SetupV2RoutesWithCustomDependencies(
 	
 	// Apply general rate limiting to v2 routes if enabled
 	if conf.RateLimit.Enabled && generalLimiter != nil {
-		v2Route.Use(pkgMiddleware.RateLimitMiddleware(generalLimiter))
+		v2Route.Use(middleware.RateLimitMiddleware(generalLimiter))
 	}
 
 	// Chat routes group
@@ -190,7 +189,7 @@ func SetupV2RoutesWithCustomDependencies(
 	
 	// Apply chat-specific rate limiting if enabled
 	if conf.RateLimit.Enabled && chatLimiter != nil {
-		chatGroup.Use(pkgMiddleware.RateLimitMiddleware(chatLimiter))
+		chatGroup.Use(middleware.RateLimitMiddleware(chatLimiter))
 	}
 
 	// WebSocket endpoint

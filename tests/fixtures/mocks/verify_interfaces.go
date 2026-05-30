@@ -1,7 +1,7 @@
 package mocks
 
 import (
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
+	"github.com/Bengkelin/bengkelin-service/internal/repository"
 )
 
 // Compile-time interface verification

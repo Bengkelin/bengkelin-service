@@ -3,8 +3,8 @@ package services_test
 import (
 	"testing"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	appErrors "github.com/Bengkelin/bengkelin-service/internal/pkg/errors"
+	"github.com/Bengkelin/bengkelin-service/internal/dto"
+	appErrors "github.com/Bengkelin/bengkelin-service/internal/errors"
 	"github.com/Bengkelin/bengkelin-service/tests/fixtures/mocks"
 	"github.com/stretchr/testify/assert"
 )

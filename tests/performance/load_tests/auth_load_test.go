@@ -11,7 +11,7 @@ import (
 	"time"
 
 	v1 "github.com/Bengkelin/bengkelin-service/internal/api/router/v1"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
+	"github.com/Bengkelin/bengkelin-service/internal/config"
 	"github.com/Bengkelin/bengkelin-service/tests/helpers"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

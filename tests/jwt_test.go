@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
-	"github.com/Bengkelin/bengkelin-service/pkg/crypto"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	"github.com/Bengkelin/bengkelin-service/internal/config"
+	"github.com/Bengkelin/bengkelin-service/internal/db"
+	"github.com/Bengkelin/bengkelin-service/internal/crypto"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
 	"github.com/stretchr/testify/assert"
 )
 

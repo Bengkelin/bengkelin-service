@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
 )
 
 func TestLoggingEnhancement(t *testing.T) {

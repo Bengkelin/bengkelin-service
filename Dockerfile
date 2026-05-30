@@ -1,6 +1,6 @@
 # Multi-stage build for minimum image size
 # Stage 1: Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -24,26 +24,22 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o main ./cmd/app/main.go
 
 # Stage 2: Final minimal image
-FROM scratch
+FROM alpine:3.20
 
-# Copy CA certificates for HTTPS requests
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-# Copy timezone data
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+RUN apk add --no-cache ca-certificates tzdata wget
 
 # Copy the binary from builder stage
 COPY --from=builder /app/main /main
 
-# Copy public assets if they exist
+# Copy public assets
 COPY --from=builder /app/public /public
 
 # Expose port
 EXPOSE 3000
 
-# Health check
+# Health check via HTTP
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD ["/main", "--health-check"] || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 # Run the binary
 ENTRYPOINT ["/main"]

@@ -6,12 +6,12 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/rabbitmq"
-	redisClient "github.com/Bengkelin/bengkelin-service/internal/pkg/redis"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
-	"github.com/Bengkelin/bengkelin-service/pkg/response"
+	"github.com/Bengkelin/bengkelin-service/internal/config"
+	"github.com/Bengkelin/bengkelin-service/internal/db"
+	"github.com/Bengkelin/bengkelin-service/internal/rabbitmq"
+	redisClient "github.com/Bengkelin/bengkelin-service/internal/redis"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
+	"github.com/Bengkelin/bengkelin-service/internal/response"
 	"github.com/gin-gonic/gin"
 )
 

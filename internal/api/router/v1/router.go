@@ -5,9 +5,8 @@ import (
 
 	"github.com/Bengkelin/bengkelin-service/internal/api/handlers"
 	"github.com/Bengkelin/bengkelin-service/internal/api/middleware"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
-	pkgMiddleware "github.com/Bengkelin/bengkelin-service/pkg/middleware"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	"github.com/Bengkelin/bengkelin-service/internal/config"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -21,7 +20,7 @@ func Setup() *gin.Engine {
 	conf := config.GetConfig()
 	
 	// Create rate limiters based on configuration
-	var generalLimiter, authLimiter, strictLimiter *pkgMiddleware.IPRateLimiter
+	var generalLimiter, authLimiter, strictLimiter *middleware.IPRateLimiter
 	
 	if conf.RateLimit.Enabled {
 		applog.Info("Rate limiting enabled", 
@@ -30,25 +29,25 @@ func Setup() *gin.Engine {
 			"strict_rps", conf.RateLimit.StrictRPS,
 		)
 		
-		generalLimiter = pkgMiddleware.NewIPRateLimiter(
+		generalLimiter = middleware.NewIPRateLimiter(
 			rate.Limit(conf.RateLimit.GeneralRPS), 
 			conf.RateLimit.GeneralBurst,
 		)
 		
-		authLimiter = pkgMiddleware.NewIPRateLimiter(
+		authLimiter = middleware.NewIPRateLimiter(
 			rate.Limit(conf.RateLimit.AuthRPS), 
 			conf.RateLimit.AuthBurst,
 		)
 		
-		strictLimiter = pkgMiddleware.NewIPRateLimiter(
+		strictLimiter = middleware.NewIPRateLimiter(
 			rate.Limit(conf.RateLimit.StrictRPS), 
 			conf.RateLimit.StrictBurst,
 		)
 		
 		// Start cleanup routines
-		pkgMiddleware.StartCleanupRoutine(generalLimiter)
-		pkgMiddleware.StartCleanupRoutine(authLimiter)
-		pkgMiddleware.StartCleanupRoutine(strictLimiter)
+		middleware.StartCleanupRoutine(generalLimiter)
+		middleware.StartCleanupRoutine(authLimiter)
+		middleware.StartCleanupRoutine(strictLimiter)
 	} else {
 		applog.Info("Rate limiting disabled")
 	}
@@ -76,7 +75,7 @@ func Setup() *gin.Engine {
 	
 	// Apply general rate limiting to all routes if enabled
 	if conf.RateLimit.Enabled && generalLimiter != nil {
-		app.Use(pkgMiddleware.RateLimitMiddleware(generalLimiter))
+		app.Use(middleware.RateLimitMiddleware(generalLimiter))
 	}
 	
 	app.NoMethod(middleware.NoMethodHandler())
@@ -102,21 +101,23 @@ func Setup() *gin.Engine {
 	// Routes for v1
 	v1Route := app.Group("/api/v1")
 
-	v1Route.StaticFS("/static/vehicle", http.Dir("public/vehicles"))
-	v1Route.StaticFS("/static/bengkel", http.Dir("public/bengkels"))
-	v1Route.StaticFS("/static/avatar", http.Dir("public/avatars"))
-	
+	// Only serve static files when using local storage
+	if conf.StorageProvider != "cloudinary" {
+		v1Route.StaticFS("/static/vehicle", http.Dir("public/vehicles"))
+		v1Route.StaticFS("/static/bengkel", http.Dir("public/bengkels"))
+		v1Route.StaticFS("/static/avatar", http.Dir("public/avatars"))
+	}
 	// AuthGroup with "auth" prefix - Apply stricter rate limiting
 	authGroup := v1Route.Group("users/auth")
 	if conf.RateLimit.Enabled && authLimiter != nil {
-		authGroup.Use(pkgMiddleware.RateLimitMiddleware(authLimiter)) // Additional auth rate limiting
+		authGroup.Use(middleware.RateLimitMiddleware(authLimiter)) // Additional auth rate limiting
 	}
 	authHandler := handlers.GetAuthHandler()
 	{
 		// Login and register get even stricter limits
 		if conf.RateLimit.Enabled && strictLimiter != nil {
-			authGroup.POST("login", pkgMiddleware.RateLimitMiddleware(strictLimiter), authHandler.UsersAuthLogin)
-			authGroup.POST("register", pkgMiddleware.RateLimitMiddleware(strictLimiter), authHandler.UsersAuthRegister)
+			authGroup.POST("login", middleware.RateLimitMiddleware(strictLimiter), authHandler.UsersAuthLogin)
+			authGroup.POST("register", middleware.RateLimitMiddleware(strictLimiter), authHandler.UsersAuthRegister)
 		} else {
 			authGroup.POST("login", authHandler.UsersAuthLogin)
 			authGroup.POST("register", authHandler.UsersAuthRegister)
@@ -130,13 +131,13 @@ func Setup() *gin.Engine {
 	// auth mitra group with "auth/mitra" prefix - Apply stricter rate limiting
 	authMitraGroup := v1Route.Group("mitras/auth")
 	if conf.RateLimit.Enabled && authLimiter != nil {
-		authMitraGroup.Use(pkgMiddleware.RateLimitMiddleware(authLimiter)) // Additional auth rate limiting
+		authMitraGroup.Use(middleware.RateLimitMiddleware(authLimiter)) // Additional auth rate limiting
 	}
 	{
 		// Login and register get even stricter limits
 		if conf.RateLimit.Enabled && strictLimiter != nil {
-			authMitraGroup.POST("login", pkgMiddleware.RateLimitMiddleware(strictLimiter), authHandler.MitrasAuthLogin)
-			authMitraGroup.POST("register", pkgMiddleware.RateLimitMiddleware(strictLimiter), authHandler.MitrasAuthRegister)
+			authMitraGroup.POST("login", middleware.RateLimitMiddleware(strictLimiter), authHandler.MitrasAuthLogin)
+			authMitraGroup.POST("register", middleware.RateLimitMiddleware(strictLimiter), authHandler.MitrasAuthRegister)
 		} else {
 			authMitraGroup.POST("login", authHandler.MitrasAuthLogin)
 			authMitraGroup.POST("register", authHandler.MitrasAuthRegister)
@@ -210,6 +211,7 @@ func Setup() *gin.Engine {
 		mitraGroup.POST("/service", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelService)
 		mitraGroup.PATCH("/service", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelService)
 		mitraGroup.POST("/photo", middleware.AuthJWTMitra(), mitraHandler.CreateBengkelPhoto)
+		mitraGroup.DELETE("/photo/:photoId", middleware.AuthJWTMitra(), mitraHandler.DeleteBengkelPhoto)
 		mitraGroup.PATCH("/service/opsi", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelStatusOpsiService)
 		mitraGroup.PATCH("/montir", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelMontir)
 		mitraGroup.PATCH("/operasional", middleware.AuthJWTMitra(), mitraHandler.UpdateBengkelOperational)

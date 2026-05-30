@@ -4,19 +4,18 @@
 .github
 
 # Documentation
-README.md
 docs/
 *.md
 
 # Development files
 .env
-.env.local
-.env.development
-.env.test
+.env.*
+!.env.example
 
 # IDE files
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~
@@ -44,17 +43,16 @@ temp/
 *.tmp
 *.log
 
-# Node modules (if any)
-node_modules/
-
-# Docker files (don't copy into image)
+# Docker (don't copy into image)
 Dockerfile*
 docker-compose*.yml
+docker/
 .dockerignore
 
-# Scripts (build scripts not needed in container)
-scripts/build.sh
-scripts/dev.sh
+# Scripts & configs (mounted via docker-compose volumes, not baked in)
+scripts/
+config/
+plan-claude-code/
 
 # Makefile
 Makefile

@@ -5,10 +5,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
-	redisClient "github.com/Bengkelin/bengkelin-service/internal/pkg/redis"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	"github.com/Bengkelin/bengkelin-service/internal/config"
+	"github.com/Bengkelin/bengkelin-service/internal/db"
+	redisClient "github.com/Bengkelin/bengkelin-service/internal/redis"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )

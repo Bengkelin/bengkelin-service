@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	appErrors "github.com/Bengkelin/bengkelin-service/internal/pkg/errors"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
-	"github.com/Bengkelin/bengkelin-service/pkg/helpers"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	"github.com/Bengkelin/bengkelin-service/internal/dto"
+	appErrors "github.com/Bengkelin/bengkelin-service/internal/errors"
+	"github.com/Bengkelin/bengkelin-service/internal/service"
+	"github.com/Bengkelin/bengkelin-service/internal/helpers"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
@@ -25,7 +25,7 @@ type ChatV2Handler struct {
 func NewChatV2Handler(chatService service.ChatV2ServiceInterface) *ChatV2Handler {
 	return &ChatV2Handler{
 		chatService:   chatService,
-		uploadService: service.NewFileUploadService(),
+		uploadService: service.NewFileUploadServiceFromConfig(),
 		validator:     validator.New(),
 	}
 }

@@ -3,7 +3,7 @@ package data
 import (
 	"time"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
+	"github.com/Bengkelin/bengkelin-service/internal/models"
 )
 
 // TestUsers provides sample user data for testing

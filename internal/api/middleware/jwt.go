@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Bengkelin/bengkelin-service/pkg/crypto"
-	"github.com/Bengkelin/bengkelin-service/pkg/response"
+	"github.com/Bengkelin/bengkelin-service/internal/crypto"
+	"github.com/Bengkelin/bengkelin-service/internal/response"
 	"github.com/gin-gonic/gin"
 )
 

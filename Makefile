@@ -1,4 +1,4 @@
-.PHONY: run build test test-coverage swagger-install swagger-gen swagger-serve test-all test-unit test-integration test-performance test-setup test-cleanup
+.PHONY: run build test test-coverage swagger-install swagger-gen swagger-serve test-all test-unit test-integration test-performance test-setup test-cleanup docker-dev docker-dev-down docker-prod docker-prod-down
 
 # Build and run commands
 run:
@@ -138,6 +138,25 @@ clean:
 clean-all: clean test-cleanup
 	@echo "Cleaned all artifacts and test data"
 
+# Docker commands
+docker-dev:
+	docker compose -f docker/docker-compose.dev.yml up --build
+
+docker-dev-down:
+	docker compose -f docker/docker-compose.dev.yml down
+
+docker-dev-logs:
+	docker compose -f docker/docker-compose.dev.yml logs -f
+
+docker-prod:
+	docker compose -f docker/docker-compose.prod.yml up -d --build
+
+docker-prod-down:
+	docker compose -f docker/docker-compose.prod.yml down
+
+docker-prod-logs:
+	docker compose -f docker/docker-compose.prod.yml logs -f
+
 # Swagger documentation
 swagger-install:
 	go install github.com/swaggo/swag/cmd/swag@latest
@@ -206,3 +225,11 @@ help:
 	@echo "Cleanup:"
 	@echo "  clean           - Clean build artifacts"
 	@echo "  clean-all       - Clean all artifacts and test data"
+	@echo ""
+	@echo "Docker:"
+	@echo "  docker-dev      - Start development environment (PostgreSQL + Redis + pgAdmin)"
+	@echo "  docker-dev-down - Stop development environment"
+	@echo "  docker-dev-logs - View development logs"
+	@echo "  docker-prod     - Start production environment"
+	@echo "  docker-prod-down- Stop production environment"
+	@echo "  docker-prod-logs- View production logs"

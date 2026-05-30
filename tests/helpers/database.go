@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
-	"github.com/Bengkelin/bengkelin-service/pkg/helpers"
+	"github.com/Bengkelin/bengkelin-service/internal/models"
+	"github.com/Bengkelin/bengkelin-service/internal/helpers"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

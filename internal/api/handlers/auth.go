@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"github.com/Bengkelin/bengkelin-service/internal/api/middleware"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/container"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
+	"github.com/Bengkelin/bengkelin-service/internal/container"
+	"github.com/Bengkelin/bengkelin-service/internal/dto"
+	"github.com/Bengkelin/bengkelin-service/internal/service"
+	"github.com/Bengkelin/bengkelin-service/internal/validator"
 	"github.com/gin-gonic/gin"
 )
 

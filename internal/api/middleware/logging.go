@@ -6,8 +6,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/Bengkelin/bengkelin-service/pkg/helpers"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	"github.com/Bengkelin/bengkelin-service/internal/helpers"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
 	"github.com/gin-gonic/gin"
 )
 

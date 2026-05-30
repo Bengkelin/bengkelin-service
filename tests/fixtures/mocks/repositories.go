@@ -3,8 +3,8 @@ package mocks
 import (
 	"context"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/repository"
+	"github.com/Bengkelin/bengkelin-service/internal/models"
+	"github.com/Bengkelin/bengkelin-service/internal/repository"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -421,6 +421,19 @@ func (m *MockBengkelPhotoRepository) UpdateBengkelPhotoById(ctx context.Context,
 
 func (m *MockBengkelPhotoRepository) GetBengkelPhotoById(ctx context.Context, bengkelId string) (*models.BengkelPhoto, error) {
 	args := m.Called(ctx, bengkelId)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.BengkelPhoto), args.Error(1)
+}
+
+func (m *MockBengkelPhotoRepository) DeleteBengkelPhotoById(ctx context.Context, photoId string) error {
+	args := m.Called(ctx, photoId)
+	return args.Error(0)
+}
+
+func (m *MockBengkelPhotoRepository) GetBengkelPhotoByPK(ctx context.Context, photoId string) (*models.BengkelPhoto, error) {
+	args := m.Called(ctx, photoId)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

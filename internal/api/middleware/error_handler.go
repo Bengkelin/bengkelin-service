@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/Bengkelin/bengkelin-service/pkg/response"
+	"github.com/Bengkelin/bengkelin-service/internal/response"
 	"github.com/gin-gonic/gin"
 )
 

@@ -3,7 +3,7 @@ package repository_test
 import (
 	"testing"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
+	"github.com/Bengkelin/bengkelin-service/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

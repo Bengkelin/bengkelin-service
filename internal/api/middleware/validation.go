@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/Bengkelin/bengkelin-service/pkg/response"
-	"github.com/Bengkelin/bengkelin-service/pkg/validation"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	"github.com/Bengkelin/bengkelin-service/internal/response"
+	"github.com/Bengkelin/bengkelin-service/internal/validation"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
 	"github.com/gin-gonic/gin"
 )
 

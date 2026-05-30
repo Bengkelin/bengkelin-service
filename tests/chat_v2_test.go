@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/Bengkelin/bengkelin-service/internal/api"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	"github.com/Bengkelin/bengkelin-service/internal/config"
+	"github.com/Bengkelin/bengkelin-service/internal/dto"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
 	"github.com/stretchr/testify/assert"
 )
 

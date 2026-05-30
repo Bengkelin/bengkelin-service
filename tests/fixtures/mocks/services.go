@@ -1,9 +1,9 @@
 package mocks
 
 import (
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
+	"github.com/Bengkelin/bengkelin-service/internal/dto"
+	"github.com/Bengkelin/bengkelin-service/internal/models"
+	"github.com/Bengkelin/bengkelin-service/internal/validator"
 	"github.com/stretchr/testify/mock"
 )
 

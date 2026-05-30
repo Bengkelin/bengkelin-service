@@ -4,13 +4,13 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/container"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	appErrors "github.com/Bengkelin/bengkelin-service/internal/pkg/errors"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
-	"github.com/Bengkelin/bengkelin-service/pkg/response"
-	"github.com/Bengkelin/bengkelin-service/pkg/validation"
+	"github.com/Bengkelin/bengkelin-service/internal/container"
+	"github.com/Bengkelin/bengkelin-service/internal/dto"
+	appErrors "github.com/Bengkelin/bengkelin-service/internal/errors"
+	"github.com/Bengkelin/bengkelin-service/internal/service"
+	"github.com/Bengkelin/bengkelin-service/internal/validator"
+	"github.com/Bengkelin/bengkelin-service/internal/response"
+	"github.com/Bengkelin/bengkelin-service/internal/validation"
 	"github.com/gin-gonic/gin"
 )
 
@@ -29,7 +29,7 @@ func GetUserHandler() UserHandlerInterface {
 		c := container.GetContainer()
 		userHandler = &UserHandler{
 			userService:   c.UserService,
-			uploadService: service.NewFileUploadService(),
+			uploadService: service.NewFileUploadServiceFromConfig(),
 		}
 	}
 	return userHandler

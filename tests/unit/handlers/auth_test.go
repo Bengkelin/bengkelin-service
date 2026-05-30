@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/Bengkelin/bengkelin-service/internal/api/handlers"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	appErrors "github.com/Bengkelin/bengkelin-service/internal/pkg/errors"
+	"github.com/Bengkelin/bengkelin-service/internal/dto"
+	appErrors "github.com/Bengkelin/bengkelin-service/internal/errors"
 	"github.com/Bengkelin/bengkelin-service/tests/fixtures/mocks"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

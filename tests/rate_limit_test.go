@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
-	pkgMiddleware "github.com/Bengkelin/bengkelin-service/pkg/middleware"
+	"github.com/Bengkelin/bengkelin-service/internal/api/middleware"
+	"github.com/Bengkelin/bengkelin-service/internal/config"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
@@ -19,10 +19,10 @@ func setupRateLimitTest() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	
 	// Create a test rate limiter: 2 requests per second, burst of 1
-	limiter := pkgMiddleware.NewIPRateLimiter(rate.Limit(2), 1)
+	limiter := middleware.NewIPRateLimiter(rate.Limit(2), 1)
 	
 	router := gin.New()
-	router.Use(pkgMiddleware.RateLimitMiddleware(limiter))
+	router.Use(middleware.RateLimitMiddleware(limiter))
 	
 	router.POST("/test", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "success"})
@@ -97,10 +97,10 @@ func TestRateLimitDifferentIPs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	
 	// Create a stricter rate limiter for this test
-	limiter := pkgMiddleware.NewIPRateLimiter(rate.Limit(1), 1) // 1 RPS, burst 1
+	limiter := middleware.NewIPRateLimiter(rate.Limit(1), 1) // 1 RPS, burst 1
 	
 	router := gin.New()
-	router.Use(pkgMiddleware.RateLimitMiddleware(limiter))
+	router.Use(middleware.RateLimitMiddleware(limiter))
 	
 	router.POST("/test", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "success"})

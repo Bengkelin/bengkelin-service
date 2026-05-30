@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/models"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
+	"github.com/Bengkelin/bengkelin-service/internal/models"
+	"github.com/Bengkelin/bengkelin-service/internal/service"
 	"github.com/Bengkelin/bengkelin-service/tests/fixtures/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

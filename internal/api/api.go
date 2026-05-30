@@ -3,13 +3,13 @@ package api
 import (
 	v1 "github.com/Bengkelin/bengkelin-service/internal/api/router/v1"
 	v2 "github.com/Bengkelin/bengkelin-service/internal/api/router/v2"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/config"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/container"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/db"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/rabbitmq"
-	redisClient "github.com/Bengkelin/bengkelin-service/internal/pkg/redis"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
+	"github.com/Bengkelin/bengkelin-service/internal/config"
+	"github.com/Bengkelin/bengkelin-service/internal/container"
+	"github.com/Bengkelin/bengkelin-service/internal/db"
+	"github.com/Bengkelin/bengkelin-service/internal/rabbitmq"
+	redisClient "github.com/Bengkelin/bengkelin-service/internal/redis"
+	"github.com/Bengkelin/bengkelin-service/internal/service"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
 	"github.com/gin-gonic/gin"
 )
 

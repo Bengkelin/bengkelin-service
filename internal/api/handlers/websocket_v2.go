@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/dto"
-	appErrors "github.com/Bengkelin/bengkelin-service/internal/pkg/errors"
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/service"
-	"github.com/Bengkelin/bengkelin-service/pkg/crypto"
-	applog "github.com/Bengkelin/bengkelin-service/pkg/log"
-	wsregistry "github.com/Bengkelin/bengkelin-service/pkg/websocket"
+	"github.com/Bengkelin/bengkelin-service/internal/dto"
+	appErrors "github.com/Bengkelin/bengkelin-service/internal/errors"
+	"github.com/Bengkelin/bengkelin-service/internal/service"
+	"github.com/Bengkelin/bengkelin-service/internal/crypto"
+	applog "github.com/Bengkelin/bengkelin-service/internal/log"
+	wsregistry "github.com/Bengkelin/bengkelin-service/internal/websocket"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )

@@ -3,8 +3,8 @@ package tests
 import (
 	"testing"
 
-	"github.com/Bengkelin/bengkelin-service/internal/pkg/validator"
-	"github.com/Bengkelin/bengkelin-service/pkg/validation"
+	"github.com/Bengkelin/bengkelin-service/internal/validator"
+	"github.com/Bengkelin/bengkelin-service/internal/validation"
 	"github.com/stretchr/testify/assert"
 )
 
